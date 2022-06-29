@@ -1,6 +1,6 @@
 from datetime import datetime
 import matplotlib.pyplot as plt
-from FtxClient import FtxClient
+from FtxClientRest import FtxClient
 from dateutil import parser
 
 

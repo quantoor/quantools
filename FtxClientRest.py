@@ -7,7 +7,6 @@ import hmac
 from ciso8601 import parse_datetime
 
 
-
 class FtxClient:
     _ENDPOINT = 'https://ftx.com/api/'
 
@@ -78,8 +77,8 @@ class FtxClient:
         return self._get(f'orders', {'market': market})
 
     def get_order_history(
-        self, market: str = None, side: str = None, order_type: str = None,
-        start_time: float = None, end_time: float = None
+            self, market: str = None, side: str = None, order_type: str = None,
+            start_time: float = None, end_time: float = None
     ) -> List[dict]:
         return self._get(f'orders/history', {
             'market': market,
@@ -90,8 +89,8 @@ class FtxClient:
         })
 
     def get_conditional_order_history(
-        self, market: str = None, side: str = None, type: str = None,
-        order_type: str = None, start_time: float = None, end_time: float = None
+            self, market: str = None, side: str = None, type: str = None,
+            order_type: str = None, start_time: float = None, end_time: float = None
     ) -> List[dict]:
         return self._get(f'conditional_orders/history', {
             'market': market,
@@ -103,9 +102,9 @@ class FtxClient:
         })
 
     def modify_order(
-        self, existing_order_id: Optional[str] = None,
-        existing_client_order_id: Optional[str] = None, price: Optional[float] = None,
-        size: Optional[float] = None, client_order_id: Optional[str] = None,
+            self, existing_order_id: Optional[str] = None,
+            existing_client_order_id: Optional[str] = None, price: Optional[float] = None,
+            size: Optional[float] = None, client_order_id: Optional[str] = None,
     ) -> dict:
         assert (existing_order_id is None) ^ (existing_client_order_id is None), \
             'Must supply exactly one ID for the order to modify'
@@ -115,7 +114,7 @@ class FtxClient:
         return self._post(path, {
             **({'size': size} if size is not None else {}),
             **({'price': price} if price is not None else {}),
-            ** ({'clientId': client_order_id} if client_order_id is not None else {}),
+            **({'clientId': client_order_id} if client_order_id is not None else {}),
         })
 
     def get_conditional_orders(self, market: str = None) -> List[dict]:
@@ -138,9 +137,9 @@ class FtxClient:
         })
 
     def place_conditional_order(
-        self, market: str, side: str, size: float, type: str = 'stop',
-        limit_price: float = None, reduce_only: bool = False, cancel: bool = True,
-        trigger_price: float = None, trail_value: float = None
+            self, market: str, side: str, size: float, type: str = 'stop',
+            limit_price: float = None, reduce_only: bool = False, cancel: bool = True,
+            trigger_price: float = None, trail_value: float = None
     ) -> dict:
         """
         To send a Stop Market order, set type='stop' and supply a trigger_price
@@ -169,8 +168,8 @@ class FtxClient:
         return self._delete(f'orders/{order_id}')
 
     def cancel_orders(
-        self, market_name: str = None,
-        conditional_orders: bool = False, limit_orders: bool = False
+            self, market_name: str = None,
+            conditional_orders: bool = False, limit_orders: bool = False
     ) -> dict:
         return self._delete(f'orders', {
             'market': market_name,
@@ -179,8 +178,8 @@ class FtxClient:
         })
 
     def get_fills(self, market: str = None, start_time: float = None,
-        end_time: float = None, min_id: int = None, order_id: int = None
-    ) -> List[dict]:
+                  end_time: float = None, min_id: int = None, order_id: int = None
+                  ) -> List[dict]:
         return self._get('fills', {
             'market': market,
             'start_time': start_time,
@@ -237,8 +236,8 @@ class FtxClient:
         return results
 
     def get_historical_prices(
-        self, market: str, resolution: int = 300, start_time: float = None,
-        end_time: float = None
+            self, market: str, resolution: int = 300, start_time: float = None,
+            end_time: float = None
     ) -> List[dict]:
         return self._get(f'markets/{market}/candles', {
             'resolution': resolution,
@@ -295,9 +294,9 @@ class FtxClient:
         })
 
     def place_staking_request(self, coin: str = 'SRM', size: float = None) -> dict:
-        return self._post('srm_stakes/stakes',)
+        return self._post('srm_stakes/stakes', )
 
-    def get_funding_rates(self, future: str = None, start_time: float = None, end_time: float = None)-> List[dict]:
+    def get_funding_rates(self, future: str = None, start_time: float = None, end_time: float = None) -> List[dict]:
         return self._get('funding_rates', {
             'future': future,
             'start_time': start_time,
@@ -342,11 +341,11 @@ class FtxClient:
 
     def submit_fiat_withdrawal(self, coin: str, size: int, saved_address_id: int, code: int = None) -> Dict:
         return self._post('wallet/fiat_withdrawals', {
-        'coin': coin,
-        'size': size,
-        'savedAddressId': saved_address_id,
-        'code': code
-    })
+            'coin': coin,
+            'size': size,
+            'savedAddressId': saved_address_id,
+            'code': code
+        })
 
     def get_latency_stats(self, days: int = 1, subaccount_nickname: str = None) -> Dict:
         return self._get('stats/latency_stats', {'days': days, 'subaccount_nickname': subaccount_nickname})
