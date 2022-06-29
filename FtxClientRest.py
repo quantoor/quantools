@@ -10,7 +10,7 @@ from ciso8601 import parse_datetime
 class FtxClient:
     _ENDPOINT = 'https://ftx.com/api/'
 
-    def __init__(self, api_key=None, api_secret=None, subaccount_name=None) -> None:
+    def __init__(self, api_key: str = '', api_secret: str = '', subaccount_name: str = '') -> None:
         self._session = Session()
         self._api_key = api_key
         self._api_secret = api_secret
