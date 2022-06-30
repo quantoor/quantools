@@ -2,6 +2,8 @@ import util
 from FtxClientRest import FtxClient
 from dateutil import parser
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import numpy as np
 
 api_key = 'ZTNWpAc4SsCV4nEICM6nwASP4ao7nHYvLSFzXunj'
 api_secret = 'x9tq4yIA27jF83bacZvg-uuFB6Ov6h4n4Ot672QI'
@@ -28,7 +30,7 @@ def search_funding_rates():
 
 
 def analyze_funding_payments():
-    start_timestamp = util.date_to_timestamp_sec(2022, 6, 27, 0)
+    start_timestamp = util.date_to_timestamp_sec(2022, 6, 29, 0)
     end_timestamp = util.timestamp_now()
     funding_payments = client.get_funding_payments(start_timestamp, end_timestamp)
 
@@ -49,7 +51,7 @@ def carry():
     futures = client.get_all_futures()
 
     for i in futures:
-        if not i['perpetual']:
+        if i['type'] == 'future' and not i['perpetual']:
 
             spotSymbol = i['underlying']
             futureSymbol = i['name']
@@ -69,7 +71,74 @@ def carry():
                 print(f'{spotSymbol}: spot {ul_price}, {futureSymbol} {future_price}, basis {round(basis, 1)} %')
 
 
+def analyze_carry():
+    coins = {}  # {'coin': [a,b,c]}
+
+    markets = client.get_markets()
+    # expired_futures = client.get_expired_futures()
+    # expired_futures_btc = [i for i in expired_futures if i['underlying'] == 'BTC' and i['type'] == 'future']
+
+    for instrument in markets:
+
+        if instrument['quoteCurrency'] not in ['USD', None]:
+            continue
+        if instrument['futureType'] == 'move':
+            continue
+        if instrument['restricted']:
+            continue
+
+        ul_name = instrument['underlying']
+        if ul_name is None:
+            ul_name = instrument['baseCurrency']
+
+        if ul_name in ['BTC', 'CEL', 'DOGE', 'ETH', 'XRP', 'USDT']:
+            continue
+
+        if ul_name in coins:
+            coins[ul_name].append(instrument)
+        else:
+            coins[ul_name] = [instrument]
+
+    coins = {key: value for (key, value) in coins.items() if len(value) > 2}
+
+    for coin in coins:
+        spot_prices = client.get_historical_prices(f'{coin}/USD')
+        perp_prices = client.get_historical_prices(f'{coin}-PERP')
+        future_prices = client.get_historical_prices(f'{coin}-0930')
+
+        # print(spot_prices[0]['time'], perp_prices[0]['time'], future_prices[0]['time'])
+        # print(spot_prices[-1]['time'], perp_prices[-1]['time'], future_prices[-1]['time'])
+
+        times = [price['startTime'] for price in spot_prices]
+        dates = mdates.num2date(mdates.datestr2num(times))
+        dates = np.array(dates)
+
+        spot_prices = np.array([price['close'] for price in spot_prices])
+        perp_prices = np.array([price['close'] for price in perp_prices])
+        future_prices = np.array([price['close'] for price in future_prices])
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 6), sharex='col')
+        fig.suptitle(coin)
+
+        # ax.plot(dates, spot_prices)
+        ax1.plot(dates, perp_prices)
+        ax1.plot(dates, future_prices)
+        ax1.legend(['perp', 'future'])
+        ax1.set_ylabel('$')
+        ax1.grid()
+
+        ax2.plot(dates, (perp_prices - future_prices) / perp_prices * 100)
+        ax2.set_ylabel('%')
+        ax2.grid()
+
+        fig.autofmt_xdate()
+        # fig.show()
+
+    plt.show()
+
+
 # historic_funding_rates()
 # pt = analyze_funding_payments()
-carry()
+# carry()
+analyze_carry()
 print('done')
