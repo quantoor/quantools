@@ -99,12 +99,15 @@ def analyze_carry():
         else:
             coins[ul_name] = [instrument]
 
-    coins = {key: value for (key, value) in coins.items() if len(value) > 2}
+    coins = {key: value for (key, value) in coins.items() if len(value) > 2 and key == '1INCH'}
+
+    start_timestamp = util.date_to_timestamp_sec(2022, 1, 1, 0)
+    end_timestamp = util.timestamp_now()
 
     for coin in coins:
-        spot_prices = client.get_historical_prices(f'{coin}/USD')
-        perp_prices = client.get_historical_prices(f'{coin}-PERP')
-        future_prices = client.get_historical_prices(f'{coin}-0930')
+        spot_prices = client.get_historical_prices(f'{coin}/USD', 3600, start_timestamp, end_timestamp)
+        perp_prices = client.get_historical_prices(f'{coin}-PERP', 3600, start_timestamp, end_timestamp)
+        future_prices = client.get_historical_prices(f'{coin}-0930', 3600, start_timestamp, end_timestamp)
 
         # print(spot_prices[0]['time'], perp_prices[0]['time'], future_prices[0]['time'])
         # print(spot_prices[-1]['time'], perp_prices[-1]['time'], future_prices[-1]['time'])
@@ -137,8 +140,55 @@ def analyze_carry():
     plt.show()
 
 
+def analyze_carry_expired():
+    print('start')
+
+    coin = '1INCH'
+    resolution = 14400
+    # expired_futures = client.get_expired_futures()
+    # expired_futures_btc = [i for i in expired_futures if i['underlying'] == coin and i['type'] == 'future']
+
+    start_timestamp = util.date_to_timestamp_sec(2022, 3, 20, 0)
+    end_timestamp = util.date_to_timestamp_sec(2022, 6, 24, 0)
+
+    print('getting perp prices')
+    perp_prices = client.get_historical_prices(f'{coin}-PERP', resolution, start_timestamp, end_timestamp)
+    print('getting future prices')
+    future_prices = client.get_historical_prices(f'{coin}-0624', resolution, start_timestamp, end_timestamp)
+    # funding_rate = client.get_funding_rates(f'{coin}-PERP', start_timestamp, end_timestamp)  # todo plot funding rate
+
+    times = [price['startTime'] for price in perp_prices]
+    print(len(perp_prices), len(future_prices))
+
+    dates = mdates.num2date(mdates.datestr2num(times))
+    dates = np.array(dates)
+
+    perp_prices = np.array([price['close'] for price in perp_prices])
+    future_prices = np.array([price['close'] for price in future_prices])
+    # todo trim perp to same length of futures
+
+    print('plotting')
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 6), sharex='col')
+    fig.suptitle(coin)
+
+    # ax.plot(dates, spot_prices)
+    ax1.plot(dates, perp_prices, linewidth=1)
+    ax1.plot(dates, future_prices, linewidth=1)
+    ax1.legend(['perp', 'future'])
+    ax1.set_ylabel('$')
+    ax1.grid()
+
+    ax2.plot(dates, (perp_prices - future_prices) / perp_prices * 100)
+    ax2.set_ylabel('%')
+    ax2.grid()
+
+    fig.autofmt_xdate()
+    plt.show()
+
+
 # historic_funding_rates()
 # pt = analyze_funding_payments()
 # carry()
-analyze_carry()
+# analyze_carry()
+analyze_carry_expired()
 print('done')
