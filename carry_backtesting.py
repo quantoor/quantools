@@ -7,44 +7,101 @@ import numpy as np
 api_key = 'ZTNWpAc4SsCV4nEICM6nwASP4ao7nHYvLSFzXunj'
 api_secret = 'x9tq4yIA27jF83bacZvg-uuFB6Ov6h4n4Ot672QI'
 
+COIN = 'AAVE'
+TRADE_AMOUNT = 100  # usd
+MIN_THRESHOLD = 0.1  # %
+MAX_THRESHOLD = 1  # %
 
-# class Position:
-#     """ The open position is defined by an entry price and a position size.
-#         ROE and PNL can be computed given the mark price.
-#     """
-#     def __init__(self, entry_price=None, size=0):
-#         self.entry_price = entry_price
-#         self.size = size
-#
-#     def __str__(self):
-#         return f"Entry price: {self.entry_price}, size: {self.size}"
-#
-#     def update(self, price, size):
-#         self.entry_price = (self.entry_price * self.size + price * size) / (self.size + size)
-#         self.size += size
-#
-#     def _get_roe(self, price):
-#         return (price - self.entry_price) / self.entry_price * 100 * self.size / abs(self.size)
-#
-#     def get_pnl(self, price):
-#         return price * abs(self.size) * self._get_roe(price) / 100
+
+class Position:
+    """ The open position is defined by an entry price and a position size.
+        ROE and PNL can be computed given the mark price.
+    """
+
+    def __init__(self, entry_price=None, size=0):
+        self.entry_price = entry_price
+        self.size = size
+
+    def __str__(self):
+        return f'Entry price: {self.entry_price}, size: {self.size}'
+
+    def update(self, price: float, size: float):
+        self.entry_price = (self.entry_price * self.size + price * size) / (self.size + size)
+        self.size += size
+
+    def _get_roe(self, price: float) -> float:
+        return (price - self.entry_price) / self.entry_price * 100 * self.size / abs(self.size)
+
+    def get_pnl(self, price: float) -> float:
+        return price * abs(self.size) * self._get_roe(price) / 100
+        # return price * self.size * (price - self.entry_price) / self.entry_price
+
+    def get_face_value(self, price: float) -> float:
+        return abs(price * self.size)
+
+
+class Account:
+    def __init__(self, init_balance: float):
+        self.perp_position = Position()
+        self.future_position = Position()
+        self.usd_balance = init_balance
+
+        self.perp_price = 0.
+        self.future_price = 0.
+        self.basis = 0.
+
+    def __str__(self):
+        return f'Final balance: {self.usd_balance}'
+
+    def _is_trade_on(self) -> bool:
+        return self.perp_position.size != 0 or self.future_position.size != 0
+
+    def trade(self, perp_price: float, future_price: float):
+        # todo flowchart
+
+        self.perp_price = perp_price
+        self.future_price = future_price
+        self.basis = (perp_price - future_price) / perp_price * 100
+
+        # check if there is a trade to close
+        if self._is_trade_on():
+            if abs(self.basis) < MIN_THRESHOLD:
+                self.close_trade()
+        # check if there is a trade to open
+        else:
+            if abs(self.basis) >= MAX_THRESHOLD:
+                self.open_trade()
+
+    def open_trade(self):
+        if self.basis > 0:
+            # sell perp, buy futures
+            print('open trade, sell {} perp, buy {} future')
+        else:
+            # buy perp, sell futures
+            print('open trade, buy {} perp, sell {} future')
+
+    def close_trade(self):
+        pass
+        # if True:
+        #     # sell perp, buy futures
+        #     print('open trade, sell {} perp, buy {} future')
+        # else:
+        #     # buy perp, sell futures
+        #     print('open trade, buy {} perp, sell {} future')
+
+    def get_equity(self, perp_price: float, future_price: float) -> float:
+        return self.usd_balance + self.perp_position.get_pnl(perp_price) + self.future_position.get_pnl(future_price)
 
 
 class CarryBacktesting:
     def __init__(self):
         self.client = FtxClient(api_key, api_secret)
-        self.coin = 'AAVE'
 
         self.dates = np.array([])
         self.perp_prices = np.array([])
         self.future_prices = np.array([])
 
-        self.perp_position = 0.
-        self.future_position = 0.
-
-        self.usd_balance = 1000
-        self.total_balance = 1000
-        self.trade_amount = 100
+        self.account = Account(1000)
 
     def carry(self):
         futures = self.client.get_all_futures()
@@ -192,9 +249,10 @@ class CarryBacktesting:
         end_timestamp = util.date_to_timestamp_sec(2022, 6, 24, 0)
 
         print('getting perp prices')
-        perp_prices = self.client.get_historical_prices(f'{self.coin}-PERP', resolution, start_timestamp, end_timestamp)
+        perp_prices = self.client.get_historical_prices(f'{COIN}-PERP', resolution, start_timestamp, end_timestamp)
         print('getting future prices')
-        future_prices = self.client.get_historical_prices(f'{self.coin}-0624', resolution, start_timestamp, end_timestamp)
+        future_prices = self.client.get_historical_prices(f'{COIN}-0624', resolution, start_timestamp,
+                                                          end_timestamp)
 
         times = [price['startTime'] for price in perp_prices]
         print(len(perp_prices), len(future_prices))
@@ -208,36 +266,21 @@ class CarryBacktesting:
         self._plot()
 
     def _backtest(self):
-        # todo flowchart
-
         assert (len(self.dates) == len(self.perp_prices))
         assert (len(self.dates) == len(self.future_prices))
 
         for i, date in enumerate(self.dates):
             perp_price = self.perp_prices[i]
             future_price = self.future_prices[i]
+            self.account.trade(perp_price, future_price)
 
-            basis = (perp_price - future_price) / perp_price * 100
-            if self.perp_position == 0.:
-                if basis > 1.:
-                    # sell perp, buy future
-                    self.usd_balance -= self.trade_amount
-                    self.perp_position += -self.trade_amount / perp_price
-
-                elif basis < -1.:
-                    # buy perp, sell future
-                    pass
-
-    def buy(self, instrument):
-        self.usd_balance
-
-    def sell(self, instrument):
-        pass
+        self.account.close_trade()
+        print(self.account)
 
     def _plot(self):
         print('plotting')
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 6), sharex='col')
-        fig.suptitle(self.coin)
+        fig.suptitle(COIN)
 
         ax1.plot(self.dates, self.perp_prices, linewidth=1)
         ax1.plot(self.dates, self.future_prices, linewidth=1)
