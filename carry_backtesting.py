@@ -49,6 +49,8 @@ class Account:
         self.perp_price = 0.
         self.future_price = 0.
         self.basis = 0.
+        self.trades_open = {}
+        self.trades_close = {}
 
     def __str__(self):
         return f'Final balance: {self.usd_balance}'
@@ -56,7 +58,7 @@ class Account:
     def _is_trade_on(self) -> bool:
         return self.perp_position.size != 0 or self.future_position.size != 0
 
-    def trade(self, perp_price: float, future_price: float):
+    def trade(self, date:str, perp_price: float, future_price: float):
         # todo flowchart
 
         self.perp_price = perp_price
@@ -64,21 +66,22 @@ class Account:
         self.basis = (perp_price - future_price) / perp_price * 100
 
         # check if there is a trade to close
-        if self._is_trade_on():
-            if abs(self.basis) < MIN_THRESHOLD:
-                self.close_trade()
+        if self._is_trade_on() and abs(self.basis) < MIN_THRESHOLD:
+            self.close_trade()
+            self.trades_open[date] = self.basis
         # check if there is a trade to open
-        else:
-            if abs(self.basis) >= MAX_THRESHOLD:
-                self.open_trade()
+        elif not self._is_trade_on() and abs(self.basis) >= MAX_THRESHOLD:
+            self.open_trade()
+            self.trades_close[date] = self.basis
 
     def open_trade(self):
-        if self.basis > 0:
-            # sell perp, buy futures
-            print('open trade, sell {} perp, buy {} future')
-        else:
-            # buy perp, sell futures
-            print('open trade, buy {} perp, sell {} future')
+        pass
+        # if self.basis > 0:
+        #     # sell perp, buy futures
+        #     print('open trade, sell {} perp, buy {} future')
+        # else:
+        #     # buy perp, sell futures
+        #     print('open trade, buy {} perp, sell {} future')
 
     def close_trade(self):
         pass
@@ -100,7 +103,6 @@ class CarryBacktesting:
         self.dates = np.array([])
         self.perp_prices = np.array([])
         self.future_prices = np.array([])
-
         self.account = Account(1000)
 
     def carry(self):
@@ -114,8 +116,10 @@ class CarryBacktesting:
 
                 try:
                     ul_market = self.client.get_single_market(f'{spotSymbol}/USD')
-                except:
+                except Exception as e:
+                    print(e)
                     continue
+
                 ul_price = ul_market['price']
                 future_price = i['mark']
 
@@ -272,7 +276,7 @@ class CarryBacktesting:
         for i, date in enumerate(self.dates):
             perp_price = self.perp_prices[i]
             future_price = self.future_prices[i]
-            self.account.trade(perp_price, future_price)
+            self.account.trade(date, perp_price, future_price)
 
         self.account.close_trade()
         print(self.account)
@@ -288,7 +292,19 @@ class CarryBacktesting:
         ax1.set_ylabel('$')
         ax1.grid()
 
-        ax2.plot(self.dates, (self.perp_prices - self.future_prices) / self.perp_prices * 100)
+        basis = (self.perp_prices - self.future_prices) / self.perp_prices * 100
+        ax2.plot(self.dates, basis)
+
+        # plot trades
+        dates = self.account.trades_open.keys()
+        trades_open = self.account.trades_open.values()
+        ax2.plot(dates, trades_open, 'o')
+
+        dates = self.account.trades_close.keys()
+        trades_close = self.account.trades_close.values()
+        ax2.plot(dates, trades_close, 'x')
+
+        ax2.legend(['basis', 'open', 'close'])
         ax2.set_ylabel('%')
         ax2.grid()
 
