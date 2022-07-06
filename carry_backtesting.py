@@ -1,8 +1,11 @@
+import pandas as pd
+
 import util
 from FtxClientRest import FtxClient
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
+import datetime as dt
 
 api_key = 'ZTNWpAc4SsCV4nEICM6nwASP4ao7nHYvLSFzXunj'
 api_secret = 'x9tq4yIA27jF83bacZvg-uuFB6Ov6h4n4Ot672QI'
@@ -14,10 +17,6 @@ INIT_OPEN_THRESHOLD = 1.  # %
 
 
 class Position:
-    """ The open position is defined by an entry price and a position size.
-        ROE and PNL can be computed given the mark price.
-    """
-
     def __init__(self, entry_price=None, size=0):
         self.entry_price = entry_price
         self.size = size
@@ -36,16 +35,10 @@ class Position:
         self.entry_price = None
         self.size = 0
 
-    # def _get_roe(self, price: float) -> float:
-    #     return (price - self.entry_price) / self.entry_price * 100 * self.size / abs(self.size)
-
     def get_pnl(self, price: float) -> float:
-        # pnl = price * abs(self.size) * self._get_roe(price) / 100
-        # return round(pnl, 2)
         if self.entry_price is None or price == self.entry_price:
             return 0
-        pnl = price * self.size * (price - self.entry_price) / self.entry_price
-        return round(pnl, 2)
+        return price * self.size * (price - self.entry_price) / self.entry_price
 
     def notional_value(self, price: float) -> float:
         return abs(price * self.size)
@@ -70,10 +63,12 @@ class Account:
         self.last_open_basis = 0.
         self.current_open_threshold = INIT_OPEN_THRESHOLD
 
+        self._results = []
+
     def __str__(self):
         return f'Total profit: {round(self.tot_profit, 2)}'
 
-    def _is_trade_on(self) -> bool:
+    def is_trade_on(self) -> bool:
         return self.perp_position.size != 0 or self.future_position.size != 0
 
     def next(self, date: str, perp_price: float, future_price: float):
@@ -85,10 +80,10 @@ class Account:
         self.basis_perc = (perp_price - future_price) / perp_price * 100
 
         # check if there is a trade to close
-        if self._is_trade_on() and abs(self.basis_perc) < CLOSE_THRESHOLD:
+        if self.is_trade_on() and abs(self.basis_perc) < CLOSE_THRESHOLD:
             self.close_trade()
 
-        elif self._is_trade_on() and abs(self.basis_perc - self.last_open_basis) > 5:
+        elif self.is_trade_on() and abs(self.basis_perc - self.last_open_basis) > 5:
             self.close_trade()
             self.last_open_basis = 0
             self.current_open_threshold = self.basis_perc + 1
@@ -100,6 +95,22 @@ class Account:
             self.last_open_basis = self.basis_perc
 
         self.equity_history.append(self.get_equity(self.perp_price, self.future_price))
+
+        # append new row
+        self._results.append({
+            'Date': self.date,
+            'PerpPrice': self.perp_price,
+            'PerpPosSize': self.perp_position.size,
+            'PerpPosEntryPrice': self.perp_position.entry_price,
+            'PerpPosPnl': self.perp_position.get_pnl(self.perp_price),
+            'FuturePrice': self.future_price,
+            'FuturePosSize': self.future_position.size,
+            'FuturePosEntryPrice': self.future_position.entry_price,
+            'FuturePosPnl': self.future_position.get_pnl(self.future_price),
+            'Basis': self.basis_perc,
+            'TradeOpen': True if (self.date in self.trades_open) else False,
+            'TradeClose': True if (self.date in self.trades_close) else False,
+        })
 
     def open_trade(self):
         perp_amount = TRADE_AMOUNT / self.perp_price
@@ -141,6 +152,12 @@ class Account:
 
     def get_equity(self, perp_price: float, future_price: float) -> float:
         return self.tot_profit + self.perp_position.get_pnl(perp_price) + self.future_position.get_pnl(future_price)
+
+    def get_results(self) -> pd.DataFrame:
+        df = pd.DataFrame(self._results)
+        # df['Timestamp'] = [dt.datetime.fromtimestamp(ts) for ts in df['Date']]  # add a column with a date format
+        # df.set_index('Timestamp', inplace=True)
+        return df
 
 
 class CarryBacktesting:
@@ -320,8 +337,13 @@ class CarryBacktesting:
             future_price = self.future_prices[i]
             self.account.next(date, perp_price, future_price)
 
-        # self.account.close_trade()
+        if self.account.is_trade_on():
+            self.account.close_trade()
+
         print(self.account)
+
+        results = self.account.get_results()
+        print(results)
 
     def _plot(self):
         print('plotting')
