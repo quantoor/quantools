@@ -11,8 +11,8 @@ client = FtxClient(api_key, api_secret, 'Funding')
 
 
 def historic_funding_rates():
-    start_timestmap = util.date_to_timestamp_sec(2021, 6, 1, 0)
-    end_timestmap = util.date_to_timestamp_sec(2021, 6, 29, 0)
+    start_timestmap = util.date_to_timestamp(2021, 6, 1, 0)
+    end_timestmap = util.date_to_timestamp(2021, 6, 29, 0)
     fundings_history = client.get_funding_rates(future='MEDIA-PERP', start_time=start_timestmap, end_time=end_timestmap)
 
     times = [parser.parse(i['time']) for i in fundings_history]
@@ -30,7 +30,7 @@ def search_funding_rates():
 
 
 def analyze_funding_payments():
-    start_timestamp = util.date_to_timestamp_sec(2022, 6, 29, 0)
+    start_timestamp = util.date_to_timestamp(2022, 6, 29, 0)
     end_timestamp = util.timestamp_now()
     funding_payments = client.get_funding_payments(start_timestamp, end_timestamp)
 

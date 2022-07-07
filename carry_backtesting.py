@@ -1,10 +1,12 @@
 import pandas as pd
 import util
+from util import logger
 from FtxClientRest import FtxClient
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 import datetime as dt
+import os
 
 api_key = 'ZTNWpAc4SsCV4nEICM6nwASP4ao7nHYvLSFzXunj'
 api_secret = 'x9tq4yIA27jF83bacZvg-uuFB6Ov6h4n4Ot672QI'
@@ -13,6 +15,7 @@ COIN = '1INCH'
 TRADE_AMOUNT = 100000  # usd
 CLOSE_THRESHOLD = 0.1  # %
 INIT_OPEN_THRESHOLD = 1.  # %
+RESULTS_FOLDER = './results'
 
 
 class Position:
@@ -147,7 +150,7 @@ class Account:
         self.current_open_threshold = INIT_OPEN_THRESHOLD
 
         self.trades_close[self.date] = self.basis_perc
-        print(f'Profit: {round(profit, 2)}')
+        logger.info(f'Profit: {round(profit, 2)}')
 
     def get_equity(self, perp_price: float, future_price: float) -> float:
         return self.tot_profit + self.perp_position.get_pnl(perp_price) + self.future_position.get_pnl(future_price)
@@ -168,8 +171,14 @@ class CarryBacktesting:
         self.future_prices = np.array([])
         self.account = Account(0)
 
+        self.perp_name = ''
+        self.future_name = ''
+
     def backtest_carry(self, perp: str, future: str, start_ts: int, end_ts: int):
-        print('getting historical prices')
+        self.perp_name = perp
+        self.future_name = future
+
+        logger.info('getting historical prices')
         resolution = 14400
         perp_prices = self.client.get_historical_prices(perp, resolution, start_ts, end_ts)
         future_prices = self.client.get_historical_prices(future, resolution, start_ts, end_ts)
@@ -194,13 +203,16 @@ class CarryBacktesting:
         if self.account.is_trade_on():
             self.account.close_trade()
 
-        print(self.account)
+        logger.info(self.account)
 
         results = self.account.get_results()
-        print(results)
+
+        if not os.path.exists(RESULTS_FOLDER):
+            os.mkdir(RESULTS_FOLDER)
+        results.to_csv(f'{RESULTS_FOLDER}/{self.perp_name}_{self.future_name}.csv')
 
     def _plot(self):
-        print('plotting')
+        logger.info('plotting')
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 6), sharex='col')
         fig.suptitle(COIN)
 
@@ -239,12 +251,12 @@ class CarryBacktesting:
 
 
 if __name__ == '__main__':
-    _start_ts = util.date_to_timestamp_sec(2022, 3, 20, 0)
-    _end_ts = util.date_to_timestamp_sec(2022, 6, 24, 0)
+    _start_ts = util.date_to_timestamp(2022, 3, 20, 0)
+    _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
 
     backtester = CarryBacktesting()
     backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', _start_ts, _end_ts)
-    print('done')
+    logger.info('done')
 
     # def carry(self):
     #     futures = self.client.get_all_futures()
