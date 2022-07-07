@@ -5,8 +5,6 @@ from FtxClientRest import FtxClient
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
-import datetime as dt
-import os
 
 api_key = 'ZTNWpAc4SsCV4nEICM6nwASP4ao7nHYvLSFzXunj'
 api_secret = 'x9tq4yIA27jF83bacZvg-uuFB6Ov6h4n4Ot672QI'
@@ -54,13 +52,11 @@ class Account:
 
         self.perp_price = 0.
         self.future_price = 0.
-        self.basis_perc = 0.
+        self.basis = 0.
         self.date = None
 
         self.trades_open = {}  # {date: basis}
         self.trades_close = {}  # {date: basis}
-
-        self.equity_history = []
 
         self.last_open_basis = 0.
         self.current_open_threshold = INIT_OPEN_THRESHOLD
@@ -79,24 +75,22 @@ class Account:
         self.date = date
         self.perp_price = perp_price
         self.future_price = future_price
-        self.basis_perc = (perp_price - future_price) / perp_price * 100
+        self.basis = (perp_price - future_price) / perp_price * 100
 
         # check if there is a trade to close
-        if self.is_trade_on() and abs(self.basis_perc) < CLOSE_THRESHOLD:
+        if self.is_trade_on() and abs(self.basis) < CLOSE_THRESHOLD:
             self.close_trade()
 
-        elif self.is_trade_on() and abs(self.basis_perc - self.last_open_basis) > 5:
+        elif self.is_trade_on() and abs(self.basis - self.last_open_basis) > 5:
             self.close_trade()
             self.last_open_basis = 0
-            self.current_open_threshold = self.basis_perc + 1
+            self.current_open_threshold = self.basis + 1
 
         # check if there is a trade to open
-        elif abs(self.basis_perc) >= self.current_open_threshold:
+        elif abs(self.basis) >= self.current_open_threshold:
             self.open_trade()
-            self.current_open_threshold = max(self.current_open_threshold + 1., self.basis_perc)
-            self.last_open_basis = self.basis_perc
-
-        self.equity_history.append(self.get_equity(self.perp_price, self.future_price))
+            self.current_open_threshold = max(self.current_open_threshold + 1., self.basis)
+            self.last_open_basis = self.basis
 
         # append new row
         self._results.append({
@@ -109,16 +103,17 @@ class Account:
             'FuturePosSize': self.future_position.size,
             'FuturePosEntryPrice': self.future_position.entry_price,
             'FuturePosPnl': self.future_position.get_pnl(self.future_price),
-            'Basis': self.basis_perc,
+            'Basis': self.basis,
             'TradeOpen': True if (self.date in self.trades_open) else False,
             'TradeClose': True if (self.date in self.trades_close) else False,
+            'Equity': self.get_equity(self.perp_price, self.future_price),
         })
 
     def open_trade(self):
         perp_amount = TRADE_AMOUNT / self.perp_price
         future_amount = perp_amount
 
-        if self.basis_perc > 0:
+        if self.basis > 0:
             # sell perp, buy futures
             self.perp_position.update(self.perp_price, -perp_amount)
             self.future_position.update(self.future_price, future_amount)
@@ -131,7 +126,7 @@ class Account:
             print(
                 f'{self.date} open trade, buy {round(perp_amount, 2)} perp @ {self.perp_price}, sell {round(future_amount, 2)} future @ {self.future_price}')
 
-        self.trades_open[self.date] = self.basis_perc
+        self.trades_open[self.date] = self.basis
 
     def close_trade(self):
         if self.perp_position.size > 0:
@@ -149,7 +144,7 @@ class Account:
         self.future_position.reset()
         self.current_open_threshold = INIT_OPEN_THRESHOLD
 
-        self.trades_close[self.date] = self.basis_perc
+        self.trades_close[self.date] = self.basis
         logger.info(f'Profit: {round(profit, 2)}')
 
     def get_equity(self, perp_price: float, future_price: float) -> float:
@@ -171,27 +166,28 @@ class CarryBacktesting:
         self.future_prices = np.array([])
         self.account = Account(0)
 
-        self.perp_name = ''
-        self.future_name = ''
+        self.results_path = ''
 
     def backtest_carry(self, perp: str, future: str, start_ts: int, end_ts: int):
-        self.perp_name = perp
-        self.future_name = future
+        self.results_path = f'{RESULTS_FOLDER}/{perp}_{future}.csv'
 
-        logger.info('getting historical prices')
-        resolution = 14400
-        perp_prices = self.client.get_historical_prices(perp, resolution, start_ts, end_ts)
-        future_prices = self.client.get_historical_prices(future, resolution, start_ts, end_ts)
+        if util.file_exists(self.results_path):
+            logger.info(f'results found at {self.results_path}')
+        else:
+            logger.info('getting historical prices')
+            resolution = 14400
+            perp_prices = self.client.get_historical_prices(perp, resolution, start_ts, end_ts)
+            future_prices = self.client.get_historical_prices(future, resolution, start_ts, end_ts)
 
-        assert (len(perp_prices) == len(future_prices))
+            assert (len(perp_prices) == len(future_prices))
 
-        times = [price['startTime'] for price in perp_prices]
-        dates = mdates.num2date(mdates.datestr2num(times))
-        self.dates = np.array(dates)
-        self.perp_prices = np.array([price['close'] for price in perp_prices])
-        self.future_prices = np.array([price['close'] for price in future_prices])
+            times = [price['startTime'] for price in perp_prices]
+            dates = mdates.num2date(mdates.datestr2num(times))
+            self.dates = np.array(dates)
+            self.perp_prices = np.array([price['close'] for price in perp_prices])
+            self.future_prices = np.array([price['close'] for price in future_prices])
+            self._backtest()
 
-        self._backtest()
         self._plot()
 
     def _backtest(self):
@@ -206,44 +202,46 @@ class CarryBacktesting:
         logger.info(self.account)
 
         results = self.account.get_results()
-
-        if not os.path.exists(RESULTS_FOLDER):
-            os.mkdir(RESULTS_FOLDER)
-        results.to_csv(f'{RESULTS_FOLDER}/{self.perp_name}_{self.future_name}.csv')
+        util.create_folder(RESULTS_FOLDER)
+        results.to_csv(self.results_path)
 
     def _plot(self):
         logger.info('plotting')
+
+        df = util.load_results(self.results_path)
+
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 6), sharex='col')
         fig.suptitle(COIN)
 
+        dates = df['Date']
+        perp_prices = df['PerpPrice']
+        future_prices = df['FuturePrice']
+        basis = df['Basis']
+        trades_open_dict = {date: basis for date, basis, trade_open in zip(df['Date'], df['Basis'], df['TradeOpen']) if
+                            trade_open}
+        trades_close_dict = {date: basis for date, basis, trade_close in zip(df['Date'], df['Basis'], df['TradeClose'])
+                             if trade_close}
+        equity = df['Equity']
+
         # ax1
-        ax1.plot(self.dates, self.perp_prices, linewidth=1)
-        ax1.plot(self.dates, self.future_prices, linewidth=1)
+        ax1.plot(dates, perp_prices, linewidth=1)
+        ax1.plot(dates, future_prices, linewidth=1)
         ax1.legend(['perp', 'future'])
         ax1.set_ylabel('$')
         ax1.grid()
 
         # ax2
-        basis_perc = (self.perp_prices - self.future_prices) / self.perp_prices * 100
-        ax2.plot(self.dates, basis_perc, linewidth=1)
-
-        # plot trades
-        dates = self.account.trades_open.keys()
-        trades_open = self.account.trades_open.values()
-        ax2.plot(dates, trades_open, 'ro', mfc='none')
-
-        dates = self.account.trades_close.keys()
-        trades_close = self.account.trades_close.values()
-        ax2.plot(dates, trades_close, 'rx')
-
-        ax2.legend(['basis perc', 'open', 'close'])
+        ax2.plot(dates, basis, linewidth=1)  # plot basis
+        ax2.plot(trades_open_dict.keys(), trades_open_dict.values(), 'ro', mfc='none')  # plot open trades
+        ax2.plot(trades_close_dict.keys(), trades_close_dict.values(), 'rx')  # plot close trades
+        ax2.legend(['basis', 'open', 'close'])
         ax2.set_ylabel('%')
         ax2.grid()
 
         # ax3
-        equity_history = np.array(self.account.equity_history)
-        ax3.plot(self.dates, equity_history, linewidth=1)
+        ax3.plot(dates, equity, linewidth=1)
         ax3.legend(['equity'])
+        ax3.set_ylabel('$')
         ax3.grid()
 
         fig.autofmt_xdate()
