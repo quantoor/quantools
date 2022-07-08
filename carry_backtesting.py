@@ -1,13 +1,10 @@
 import pandas as pd
 import util
 from util import logger
-from FtxClientRest import FtxClient
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
-
-api_key = 'ZTNWpAc4SsCV4nEICM6nwASP4ao7nHYvLSFzXunj'
-api_secret = 'x9tq4yIA27jF83bacZvg-uuFB6Ov6h4n4Ot672QI'
+import datetime as dt
 
 COIN = '1INCH'
 TRADE_AMOUNT = 100000  # usd
@@ -159,8 +156,6 @@ class Account:
 
 class CarryBacktesting:
     def __init__(self):
-        self.client = FtxClient(api_key, api_secret)
-
         self.dates = np.array([])
         self.perp_prices = np.array([])
         self.future_prices = np.array([])
@@ -168,24 +163,24 @@ class CarryBacktesting:
 
         self.results_path = ''
 
-    def backtest_carry(self, perp: str, future: str, start_ts: int, end_ts: int):
+    def backtest_carry(self, perp: str, future: str, resolution: int, start_ts: int, end_ts: int,
+                       load_results: bool = False):
         self.results_path = f'{RESULTS_FOLDER}/{perp}_{future}.csv'
 
-        if util.file_exists(self.results_path):
+        if load_results and util.file_exists(self.results_path):
             logger.info(f'results found at {self.results_path}')
         else:
-            logger.info('getting historical prices')
-            resolution = 14400
-            perp_prices = self.client.get_historical_prices(perp, resolution, start_ts, end_ts)
-            future_prices = self.client.get_historical_prices(future, resolution, start_ts, end_ts)
+            perp_ts, self.perp_prices = util.get_historical_prices(perp, resolution, start_ts, end_ts)
+            future_ts, self.future_prices = util.get_historical_prices(future, resolution, start_ts, end_ts)
 
-            assert (len(perp_prices) == len(future_prices))
+            assert perp_ts.all() == future_ts.all()
+            assert len(self.perp_prices) == len(self.future_prices)
 
-            times = [price['startTime'] for price in perp_prices]
-            dates = mdates.num2date(mdates.datestr2num(times))
+            # times = [price['startTime'] for price in perp_prices]
+            # dates = mdates.num2date(mdates.datestr2num(times))
+            # dates = [dt.datetime.fromtimestamp(ts).strftime("%Y-%m-%d_%H:%M:%S") for ts in perp_ts]
+            dates = [dt.datetime.fromtimestamp(ts).isoformat() for ts in perp_ts]
             self.dates = np.array(dates)
-            self.perp_prices = np.array([price['close'] for price in perp_prices])
-            self.future_prices = np.array([price['close'] for price in future_prices])
             self._backtest()
 
         self._plot()
@@ -249,11 +244,12 @@ class CarryBacktesting:
 
 
 if __name__ == '__main__':
+    _resolution = 3600
     _start_ts = util.date_to_timestamp(2022, 3, 20, 0)
     _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
 
     backtester = CarryBacktesting()
-    backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', _start_ts, _end_ts)
+    backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', _resolution, _start_ts, _end_ts)
     logger.info('done')
 
     # def carry(self):
