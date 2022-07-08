@@ -58,6 +58,8 @@ class Account:
         self.last_open_basis = 0.
         self.current_open_threshold = INIT_OPEN_THRESHOLD
 
+        self.cum_funding_rate_paid = 0.
+
         self._results = []
 
     def __str__(self):
@@ -70,6 +72,7 @@ class Account:
         # todo flowchart
 
         funding_paid = funding_rate * self.perp_position.size
+        self.cum_funding_rate_paid += funding_paid
 
         self.date = date
         self.perp_price = perp_price
@@ -105,9 +108,11 @@ class Account:
             'Basis': self.basis,
             'TradeOpen': True if (self.date in self.trades_open) else False,
             'TradeClose': True if (self.date in self.trades_close) else False,
-            'Equity': self.get_equity(self.perp_price, self.future_price),
+            'Pnl': self.get_equity(self.perp_price, self.future_price),
+            'Equity': self.get_equity(self.perp_price, self.future_price) - self.cum_funding_rate_paid,
             'FundingRate': funding_rate,
             'FundingPaid': funding_paid,
+            'CumFundingRatePaid': self.cum_funding_rate_paid,
         })
 
     def open_trade(self):
@@ -224,6 +229,7 @@ class CarryBacktesting:
                             trade_open}
         trades_close_dict = {date: basis for date, basis, trade_close in zip(df['Date'], df['Basis'], df['TradeClose'])
                              if trade_close}
+        pnl = df['Pnl']
         equity = df['Equity']
         funding_rate = df['FundingRate']
         funding_paid = df['FundingPaid']
@@ -232,7 +238,7 @@ class CarryBacktesting:
         ax1.plot(dates, perp_prices, linewidth=1)
         ax1.plot(dates, future_prices, linewidth=1)
         ax1.legend(['perp', 'future'])
-        ax1.set_ylabel('$')
+        ax1.set_ylabel('$', labelpad=10).set_rotation(0)
         ax1.grid()
 
         # ax2
@@ -240,23 +246,33 @@ class CarryBacktesting:
         ax2.plot(trades_open_dict.keys(), trades_open_dict.values(), 'ro', mfc='none')  # plot open trades
         ax2.plot(trades_close_dict.keys(), trades_close_dict.values(), 'rx')  # plot close trades
         ax2.legend(['basis', 'open', 'close'])
-        ax2.set_ylabel('%')
+        ax2.set_ylabel('%').set_rotation(0)
         ax2.grid()
 
         # ax3
         ax3.plot(dates, equity, linewidth=1)
-        ax3.legend(['equity'])
-        ax3.set_ylabel('$')
+        # ax3.legend(['equity'])
+        ax3.set_ylabel('$', labelpad=10).set_rotation(0)
         ax3.grid()
 
+        ax3_ = ax3.twinx()
+        ax3_.plot(dates, pnl, linewidth=0.3)
+        ax3_.set_ylabel('%', labelpad=10).set_rotation(0)
+
         # ax4
-        ax4.plot(dates, funding_rate, linewidth=1)
         ax4.plot(dates, funding_paid, linewidth=1)
-        ax4.legend(['funding rate', 'funding paid'])
-        ax4.set_ylabel('$')
+        # ax4.fill_between(dates, 0, funding_paid, alpha=0.5, where=funding_paid > 0, facecolor='r')
+        # ax4.fill_between(dates, 0, funding_paid, alpha=0.5, where=funding_paid < 0, facecolor='g')
+        # ax4.legend(['funding rate', 'funding paid'])
+        ax4.set_ylabel('$', labelpad=10).set_rotation(0)
         ax4.grid()
 
+        ax4_ = ax4.twinx()
+        ax4_.plot(dates, funding_rate * 100, '--', linewidth=0.3)
+        ax4_.set_ylabel('%', labelpad=10).set_rotation(0)
+
         fig.autofmt_xdate()
+        fig.tight_layout()
         plt.show()
 
 
@@ -266,7 +282,7 @@ if __name__ == '__main__':
     _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
 
     backtester = CarryBacktesting()
-    backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', _resolution, _start_ts, _end_ts)
+    backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', _resolution, _start_ts, _end_ts, False)
     logger.info('done')
 
     # def carry(self):
