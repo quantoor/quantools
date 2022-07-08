@@ -248,6 +248,8 @@ if __name__ == '__main__':
     _start_ts = util.date_to_timestamp(2022, 3, 20, 0)
     _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
 
+    util.get_historical_funding('BTC-PERP', _start_ts, _end_ts, True)
+
     backtester = CarryBacktesting()
     backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', _resolution, _start_ts, _end_ts)
     logger.info('done')

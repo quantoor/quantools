@@ -6,7 +6,6 @@ from FtxClientRest import FtxClient
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 logger = logging.getLogger("Log")
 logger.setLevel(logging.DEBUG)
 
@@ -47,7 +46,7 @@ client = FtxClient(api_key, api_secret)
 
 
 def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_ts: int, plot: bool = False):
-    print(f'downloading prices of {instrument}...', end='')
+    print(f'downloading historical prices of {instrument}...', end='')
 
     timestamps = []
     prices = []
@@ -68,3 +67,27 @@ def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_t
 
     print('done')
     return np.array(timestamps), np.array(prices)
+
+
+def get_historical_funding(instrument: str, start_ts: int, end_ts: int, plot: bool = False):
+    print(f'downloading historical funding rate of {instrument}...', end='')
+
+    timestamps = []
+    rates = []
+    first_ts_received = end_ts
+
+    while first_ts_received - 3600 > start_ts:
+        res = client.get_funding_rates(instrument, start_ts, first_ts_received - 3600)
+        first_ts_received = int(dt.datetime.fromisoformat(res[-1]['time']).timestamp())
+        for i in res:
+            timestamps.insert(0, int(dt.datetime.fromisoformat(i['time']).timestamp()))
+            rates.insert(0, i['rate'])
+        print('...', end='')
+
+    if plot:
+        plt.figure()
+        plt.plot(timestamps, rates)
+        plt.show()
+
+    print('done')
+    return np.array(timestamps), np.array(rates)
