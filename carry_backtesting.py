@@ -66,8 +66,10 @@ class Account:
     def is_trade_on(self) -> bool:
         return self.perp_position.size != 0 or self.future_position.size != 0
 
-    def next(self, date: str, perp_price: float, future_price: float):
+    def next(self, date: str, perp_price: float, future_price: float, funding_rate: float):
         # todo flowchart
+
+        funding_paid = funding_rate * self.perp_position.size
 
         self.date = date
         self.perp_price = perp_price
@@ -104,6 +106,8 @@ class Account:
             'TradeOpen': True if (self.date in self.trades_open) else False,
             'TradeClose': True if (self.date in self.trades_close) else False,
             'Equity': self.get_equity(self.perp_price, self.future_price),
+            'FundingRate': funding_rate,
+            'FundingPaid': funding_paid,
         })
 
     def open_trade(self):
@@ -159,6 +163,7 @@ class CarryBacktesting:
         self.dates = np.array([])
         self.perp_prices = np.array([])
         self.future_prices = np.array([])
+        self.funding_rates = np.array([])
         self.account = Account(0)
 
         self.results_path = ''
@@ -172,11 +177,13 @@ class CarryBacktesting:
         else:
             perp_ts, self.perp_prices = util.get_historical_prices(perp, resolution, start_ts, end_ts)
             future_ts, self.future_prices = util.get_historical_prices(future, resolution, start_ts, end_ts)
+            rates_ts, self.funding_rates = util.get_historical_funding(perp, start_ts, end_ts)
 
             assert perp_ts.all() == future_ts.all()
             assert len(self.perp_prices) == len(self.future_prices)
+            assert perp_ts.all() == rates_ts.all()
+            assert len(self.perp_prices) == len(self.funding_rates)
 
-            # times = [price['startTime'] for price in perp_prices]
             # dates = mdates.num2date(mdates.datestr2num(times))
             # dates = [dt.datetime.fromtimestamp(ts).strftime("%Y-%m-%d_%H:%M:%S") for ts in perp_ts]
             dates = [dt.datetime.fromtimestamp(ts).isoformat() for ts in perp_ts]
@@ -189,7 +196,8 @@ class CarryBacktesting:
         for i, date in enumerate(self.dates):
             perp_price = self.perp_prices[i]
             future_price = self.future_prices[i]
-            self.account.next(date, perp_price, future_price)
+            funding_rate = self.funding_rates[i]
+            self.account.next(date, perp_price, future_price, funding_rate)
 
         if self.account.is_trade_on():
             self.account.close_trade()
@@ -205,7 +213,7 @@ class CarryBacktesting:
 
         df = util.load_results(self.results_path)
 
-        fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 6), sharex='col')
+        fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 6), sharex='col')
         fig.suptitle(COIN)
 
         dates = df['Date']
@@ -217,6 +225,8 @@ class CarryBacktesting:
         trades_close_dict = {date: basis for date, basis, trade_close in zip(df['Date'], df['Basis'], df['TradeClose'])
                              if trade_close}
         equity = df['Equity']
+        funding_rate = df['FundingRate']
+        funding_paid = df['FundingPaid']
 
         # ax1
         ax1.plot(dates, perp_prices, linewidth=1)
@@ -239,6 +249,13 @@ class CarryBacktesting:
         ax3.set_ylabel('$')
         ax3.grid()
 
+        # ax4
+        ax4.plot(dates, funding_rate, linewidth=1)
+        ax4.plot(dates, funding_paid, linewidth=1)
+        ax4.legend(['funding rate', 'funding paid'])
+        ax4.set_ylabel('$')
+        ax4.grid()
+
         fig.autofmt_xdate()
         plt.show()
 
@@ -247,8 +264,6 @@ if __name__ == '__main__':
     _resolution = 3600
     _start_ts = util.date_to_timestamp(2022, 3, 20, 0)
     _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
-
-    util.get_historical_funding('BTC-PERP', _start_ts, _end_ts, True)
 
     backtester = CarryBacktesting()
     backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', _resolution, _start_ts, _end_ts)

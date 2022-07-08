@@ -26,6 +26,10 @@ def timestamp_now() -> int:
     return int(dt.datetime.now().timestamp())
 
 
+def iso_date_to_timestamp(iso_date: str) -> int:
+    return int(dt.datetime.fromisoformat(iso_date).timestamp())
+
+
 def file_exists(file_path: str) -> bool:
     return Path(file_path).is_file()
 
@@ -78,9 +82,9 @@ def get_historical_funding(instrument: str, start_ts: int, end_ts: int, plot: bo
 
     while first_ts_received - 3600 > start_ts:
         res = client.get_funding_rates(instrument, start_ts, first_ts_received - 3600)
-        first_ts_received = int(dt.datetime.fromisoformat(res[-1]['time']).timestamp())
+        first_ts_received = iso_date_to_timestamp(res[-1]['time'])
         for i in res:
-            timestamps.insert(0, int(dt.datetime.fromisoformat(i['time']).timestamp()))
+            timestamps.insert(0, iso_date_to_timestamp(i['time']))
             rates.insert(0, i['rate'])
         print('...', end='')
 
