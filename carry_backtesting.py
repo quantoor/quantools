@@ -1,12 +1,13 @@
 import pandas as pd
 import util
 from util import logger
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import datetime as dt
 from trading import Position
 
-COIN = 'AAVE'
+
 TRADE_AMOUNT = 100000  # usd
 CLOSE_THRESHOLD = 0.1  # %
 INIT_OPEN_THRESHOLD = 1.  # %
@@ -140,6 +141,8 @@ class Account:
 
 class CarryBacktesting:
     def __init__(self):
+        self.coin = ''
+        self.expiration = ''
         self.dates = np.array([])
         self.perp_prices = np.array([])
         self.fut_prices = np.array([])
@@ -148,12 +151,18 @@ class CarryBacktesting:
 
         self.results_path = ''
 
-    def backtest_carry(self, perp: str, fut: str, resolution: int, start_ts: int, end_ts: int,
-                       overwrite_results: bool = False):
-        self.results_path = f'{RESULTS_FOLDER}/{perp}_{fut}.csv'
+    def backtest_carry(self, coin: str, expiration: str, resolution: int, start_ts: int, end_ts: int,
+                       overwrite_results: bool = False) -> matplotlib.figure:
+        self.coin = coin
+        self.expiration = expiration
+
+        perp = f'{coin}-PERP'
+        fut = f'{coin}-{expiration}'
+        name_path = f'{RESULTS_FOLDER}/{perp}_{fut}'
+        self.results_path = name_path + '.csv'
 
         if not overwrite_results and util.file_exists(self.results_path):
-            logger.info(f'results found at {self.results_path}')
+            logger.debug(f'results found at {self.results_path}')
         else:
             perp_ts, self.perp_prices = util.get_historical_prices(perp, resolution, start_ts, end_ts)
             fut_ts, self.fut_prices = util.get_historical_prices(fut, resolution, start_ts, end_ts)
@@ -170,7 +179,10 @@ class CarryBacktesting:
             self.dates = np.array(dates)
             self._backtest()
 
-        self.plot(self.results_path)
+        fig = self.get_results_plot_figure()
+        fig_path = name_path + '.png'
+        fig.savefig(fig_path)
+        return fig
 
     def _backtest(self):
         for i, date in enumerate(self.dates):
@@ -186,14 +198,13 @@ class CarryBacktesting:
         logger.info(self.account)
         self.account.save_results(self.results_path)
 
-    @staticmethod
-    def plot(file_path: str):
-        logger.info('plotting')
+    def get_results_plot_figure(self) -> matplotlib.figure:
+        logger.debug('plotting')
 
-        df = util.load_results(file_path)
+        df = util.load_results(self.results_path)
 
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 6), sharex='col')
-        fig.suptitle(COIN)
+        fig.suptitle(f'{self.coin}-PERP, {self.coin}-{self.expiration}')
 
         dates = df['Date']
         perp_prices = df['PerpPrice']
@@ -255,7 +266,7 @@ class CarryBacktesting:
 
         fig.autofmt_xdate()
         fig.tight_layout()
-        plt.show()
+        return fig
 
     @staticmethod
     def check_integrity(file_path: str):
@@ -318,11 +329,14 @@ class CarryBacktesting:
 
 
 def main():
+    coin = 'AAVE'
+    fut_expiration = '0624'
     _start_ts = util.date_to_timestamp(2022, 3, 20, 0)
     _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
 
     backtester = CarryBacktesting()
-    backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', 3600, _start_ts, _end_ts, overwrite_results=False)
+    backtester.backtest_carry(coin, fut_expiration, 3600, _start_ts, _end_ts, overwrite_results=False)
+    plt.show()
     logger.info('done')
 
 
