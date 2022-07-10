@@ -44,11 +44,11 @@ class Position:
 class Account:
     def __init__(self, init_balance: float):
         self.perp_position = Position()
-        self.future_position = Position()
+        self.fut_position = Position()
         self.tot_profit = init_balance
 
         self.perp_price = 0.
-        self.future_price = 0.
+        self.fut_price = 0.
         self.basis = 0.
         self.date = None
 
@@ -66,18 +66,15 @@ class Account:
         return f'Total profit: {round(self.tot_profit, 2)}'
 
     def is_trade_on(self) -> bool:
-        return self.perp_position.size != 0 or self.future_position.size != 0
+        return self.perp_position.size != 0 or self.fut_position.size != 0
 
-    def next(self, date: str, perp_price: float, future_price: float, funding_rate: float):
+    def next(self, date: str, perp_price: float, fut_price: float, funding_rate: float):
         # todo flowchart
-
-        funding_paid = funding_rate * self.perp_position.size
-        self.cum_funding_rate_paid += funding_paid
 
         self.date = date
         self.perp_price = perp_price
-        self.future_price = future_price
-        self.basis = (perp_price - future_price) / perp_price * 100
+        self.fut_price = fut_price
+        self.basis = (perp_price - fut_price) / perp_price * 100
 
         # check if there is a trade to close
         if self.is_trade_on() and abs(self.basis) < CLOSE_THRESHOLD:
@@ -94,6 +91,9 @@ class Account:
             self.current_open_threshold = max(self.current_open_threshold + 1., self.basis)
             self.last_open_basis = self.basis
 
+        funding_paid = funding_rate * self.perp_position.size
+        self.cum_funding_rate_paid += funding_paid
+
         # append new row
         self._results.append({
             'Date': self.date,
@@ -101,15 +101,15 @@ class Account:
             'PerpPosSize': self.perp_position.size,
             'PerpPosEntryPrice': self.perp_position.entry_price,
             'PerpPosPnl': self.perp_position.get_pnl(self.perp_price),
-            'FuturePrice': self.future_price,
-            'FuturePosSize': self.future_position.size,
-            'FuturePosEntryPrice': self.future_position.entry_price,
-            'FuturePosPnl': self.future_position.get_pnl(self.future_price),
+            'FutPrice': self.fut_price,
+            'FutPosSize': self.fut_position.size,
+            'FutPosEntryPrice': self.fut_position.entry_price,
+            'FutPosPnl': self.fut_position.get_pnl(self.fut_price),
             'Basis': self.basis,
             'TradeOpen': True if (self.date in self.trades_open) else False,
             'TradeClose': True if (self.date in self.trades_close) else False,
-            'Pnl': self.get_equity(self.perp_price, self.future_price),
-            'Equity': self.get_equity(self.perp_price, self.future_price) - self.cum_funding_rate_paid,
+            'Pnl': self.get_equity(self.perp_price, self.fut_price),
+            'Equity': self.get_equity(self.perp_price, self.fut_price) - self.cum_funding_rate_paid,
             'FundingRate': funding_rate,
             'FundingPaid': funding_paid,
             'CumFundingRatePaid': self.cum_funding_rate_paid,
@@ -117,20 +117,20 @@ class Account:
 
     def open_trade(self):
         perp_amount = TRADE_AMOUNT / self.perp_price
-        future_amount = perp_amount
+        fut_amount = perp_amount
 
         if self.basis > 0:
-            # sell perp, buy futures
+            # sell perp, buy futs
             self.perp_position.update(self.perp_price, -perp_amount)
-            self.future_position.update(self.future_price, future_amount)
+            self.fut_position.update(self.fut_price, fut_amount)
             print(
-                f'{self.date} open trade, sell {round(perp_amount, 2)} perp @ {self.perp_price}, buy {round(future_amount, 2)} future @ {self.future_price}')
+                f'{self.date} open trade, sell {round(perp_amount, 2)} perp @ {self.perp_price}, buy {round(fut_amount, 2)} fut @ {self.fut_price}')
         else:
-            # buy perp, sell futures
+            # buy perp, sell futs
             self.perp_position.update(self.perp_price, perp_amount)
-            self.future_position.update(self.future_price, -future_amount)
+            self.fut_position.update(self.fut_price, -fut_amount)
             print(
-                f'{self.date} open trade, buy {round(perp_amount, 2)} perp @ {self.perp_price}, sell {round(future_amount, 2)} future @ {self.future_price}')
+                f'{self.date} open trade, buy {round(perp_amount, 2)} perp @ {self.perp_price}, sell {round(fut_amount, 2)} fut @ {self.fut_price}')
 
         self.trades_open[self.date] = self.basis
 
@@ -138,23 +138,23 @@ class Account:
         if self.perp_position.size > 0:
             print(
                 f'{self.date} close trade, sell {round(self.perp_position.size, 2)} perp @ {self.perp_price} pnl {self.perp_position.get_pnl(self.perp_price)},'
-                f' buy {round(self.future_position.size, 2)} future @ {self.future_price} pnl {self.future_position.get_pnl(self.future_price)}')
+                f' buy {round(self.fut_position.size, 2)} fut @ {self.fut_price} pnl {self.fut_position.get_pnl(self.fut_price)}')
         else:
             print(
                 f'{self.date} close trade, buy {round(self.perp_position.size, 2)} perp @ {self.perp_price} pnl {self.perp_position.get_pnl(self.perp_price)},'
-                f' sell {round(self.future_position.size, 2)} future @ {self.future_price} pnl {self.future_position.get_pnl(self.future_price)}')
+                f' sell {round(self.fut_position.size, 2)} fut @ {self.fut_price} pnl {self.fut_position.get_pnl(self.fut_price)}')
 
-        profit = self.perp_position.get_pnl(self.perp_price) + self.future_position.get_pnl(self.future_price)
+        profit = self.perp_position.get_pnl(self.perp_price) + self.fut_position.get_pnl(self.fut_price)
         self.tot_profit += profit
         self.perp_position.reset()
-        self.future_position.reset()
+        self.fut_position.reset()
         self.current_open_threshold = INIT_OPEN_THRESHOLD
 
         self.trades_close[self.date] = self.basis
         logger.info(f'Profit: {round(profit, 2)}')
 
-    def get_equity(self, perp_price: float, future_price: float) -> float:
-        return self.tot_profit + self.perp_position.get_pnl(perp_price) + self.future_position.get_pnl(future_price)
+    def get_equity(self, perp_price: float, fut_price: float) -> float:
+        return self.tot_profit + self.perp_position.get_pnl(perp_price) + self.fut_position.get_pnl(fut_price)
 
     def get_results(self) -> pd.DataFrame:
         df = pd.DataFrame(self._results)
@@ -167,25 +167,25 @@ class CarryBacktesting:
     def __init__(self):
         self.dates = np.array([])
         self.perp_prices = np.array([])
-        self.future_prices = np.array([])
+        self.fut_prices = np.array([])
         self.funding_rates = np.array([])
         self.account = Account(0)
 
         self.results_path = ''
 
-    def backtest_carry(self, perp: str, future: str, resolution: int, start_ts: int, end_ts: int,
+    def backtest_carry(self, perp: str, fut: str, resolution: int, start_ts: int, end_ts: int,
                        load_results: bool = False):
-        self.results_path = f'{RESULTS_FOLDER}/{perp}_{future}.csv'
+        self.results_path = f'{RESULTS_FOLDER}/{perp}_{fut}.csv'
 
         if load_results and util.file_exists(self.results_path):
             logger.info(f'results found at {self.results_path}')
         else:
             perp_ts, self.perp_prices = util.get_historical_prices(perp, resolution, start_ts, end_ts)
-            future_ts, self.future_prices = util.get_historical_prices(future, resolution, start_ts, end_ts)
+            fut_ts, self.fut_prices = util.get_historical_prices(fut, resolution, start_ts, end_ts)
             rates_ts, self.funding_rates = util.get_historical_funding(perp, start_ts, end_ts)
 
-            assert perp_ts.all() == future_ts.all()
-            assert len(self.perp_prices) == len(self.future_prices)
+            assert perp_ts.all() == fut_ts.all()
+            assert len(self.perp_prices) == len(self.fut_prices)
             assert perp_ts.all() == rates_ts.all()
             assert len(self.perp_prices) == len(self.funding_rates)
 
@@ -200,9 +200,9 @@ class CarryBacktesting:
     def _backtest(self):
         for i, date in enumerate(self.dates):
             perp_price = self.perp_prices[i]
-            future_price = self.future_prices[i]
+            fut_price = self.fut_prices[i]
             funding_rate = self.funding_rates[i]
-            self.account.next(date, perp_price, future_price, funding_rate)
+            self.account.next(date, perp_price, fut_price, funding_rate)
 
         if self.account.is_trade_on():
             self.account.close_trade()
@@ -223,7 +223,7 @@ class CarryBacktesting:
 
         dates = df['Date']
         perp_prices = df['PerpPrice']
-        future_prices = df['FuturePrice']
+        fut_prices = df['FutPrice']
         basis = df['Basis']
         trades_open_dict = {date: basis for date, basis, trade_open in zip(df['Date'], df['Basis'], df['TradeOpen']) if
                             trade_open}
@@ -236,8 +236,8 @@ class CarryBacktesting:
 
         # ax1
         ax1.plot(dates, perp_prices, linewidth=1)
-        ax1.plot(dates, future_prices, linewidth=1)
-        ax1.legend(['perp', 'future'])
+        ax1.plot(dates, fut_prices, linewidth=1)
+        ax1.legend(['perp', 'fut'])
         ax1.set_ylabel('$', labelpad=10).set_rotation(0)
         ax1.grid()
 
@@ -275,6 +275,30 @@ class CarryBacktesting:
         fig.tight_layout()
         plt.show()
 
+    @staticmethod
+    def check_integrity(file_path: str):
+        df = util.load_results(file_path)
+
+        for i in range(1, len(df.index)):
+            date, date_ = df['Date'][i], df['Date'][i - 1]
+            perp_price, perp_price_ = df['PerpPrice'][i], df['PerpPrice'][i - 1]
+            perp_pos_size, perp_pos_size_ = df['PerpPosSize'][i], df['PerpPosSize'][i - 1]
+            perp_pos_entry_price, perp_pos_entry_price_ = df['PerpPosEntryPrice'][i], df['PerpPosEntryPrice'][i - 1]
+            fut_price, fut_price_ = df['FutPrice'][i], df['FutPrice'][i - 1]
+            fut_pos_size, fut_pos_size_ = df['FutPosSize'][i], df['FutPosSize'][i - 1]
+            fut_pos_entry_price, fut_pos_entry_price_ = df['FutPosEntryPrice'][i], df['FutPosEntryPrice'][i - 1]
+            basis, basis_ = df['Basis'][i], df['Basis'][i - 1]
+            trade_open, trade_open_ = df['TradeOpen'][i], df['TradeOpen'][i - 1]
+            trade_close, trade_close_ = df['TradeClose'][i], df['TradeClose'][i - 1]
+            pnl, pnl_ = df['Pnl'][i], df['Pnl'][i - 1]
+            equity, equity_ = df['Equity'][i], df['Equity'][i - 1]
+            funding_rate, funding_rate_ = df['FundingRate'][i], df['FundingRate'][i - 1]
+            funding_paid, funding_paid_ = df['FundingPaid'][i], df['FundingPaid'][i - 1]
+            cum_funding_rate, cum_funding_rate_ = df['CumFundingRatePaid'][i], df['CumFundingRatePaid'][i - 1]
+
+            if i > 5:
+                break
+
 
 if __name__ == '__main__':
     _resolution = 3600
@@ -285,142 +309,142 @@ if __name__ == '__main__':
     backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', _resolution, _start_ts, _end_ts, False)
     logger.info('done')
 
-    # def carry(self):
-    #     futures = self.client.get_all_futures()
-    #
-    #     for i in futures:
-    #         if i['type'] == 'future' and not i['perpetual']:
-    #
-    #             spotSymbol = i['underlying']
-    #             futureSymbol = i['name']
-    #
-    #             try:
-    #                 ul_market = self.client.get_single_market(f'{spotSymbol}/USD')
-    #             except Exception as e:
-    #                 print(e)
-    #                 continue
-    #
-    #             ul_price = ul_market['price']
-    #             future_price = i['mark']
-    #
-    #             # higher = max(ul_price, futurePrice)
-    #             # lower = min(ul_price, futurePrice)
-    #             basis = (future_price - ul_price) / ul_price * 100
-    #
-    #             if abs(basis) > 3:
-    #                 print(f'{spotSymbol}: spot {ul_price}, {futureSymbol} {future_price}, basis {round(basis, 1)} %')
-    #
-    # def analyze_carry(self):
-    #     # mean rev: YFI SUSHI FTM AAVE
-    #     # crazy: WAVES GST GMT BAL AXS
-    #
-    #     coins = {}  # {'coin': [a,b,c]}
-    #
-    #     markets = self.client.get_markets()
-    #     # expired_futures = client.get_expired_futures()
-    #     # expired_futures_btc = [i for i in expired_futures if i['underlying'] == 'BTC' and i['type'] == 'future']
-    #
-    #     for instrument in markets:
-    #
-    #         if instrument['quoteCurrency'] not in ['USD', None]:
-    #             continue
-    #         if instrument['futureType'] == 'move':
-    #             continue
-    #         if instrument['restricted']:
-    #             continue
-    #
-    #         ul_name = instrument['underlying']
-    #         if ul_name is None:
-    #             ul_name = instrument['baseCurrency']
-    #
-    #         if ul_name in ['BTC', 'CEL', 'DOGE', 'ETH', 'XRP', 'USDT']:
-    #             continue
-    #
-    #         if ul_name in coins:
-    #             coins[ul_name].append(instrument)
-    #         else:
-    #             coins[ul_name] = [instrument]
-    #
-    #     coins = {key: value for (key, value) in coins.items() if len(value) > 2}
-    #
-    #     start_timestamp = util.date_to_timestamp_sec(2022, 6, 1, 0)
-    #     end_timestamp = util.timestamp_now()
-    #
-    #     for coin in coins:
-    #         print(coin)
-    #         # spot_prices = client.get_historical_prices(f'{coin}/USD', 3600, start_timestamp, end_timestamp)
-    #         perp_prices = self.client.get_historical_prices(f'{coin}-PERP', 3600, start_timestamp, end_timestamp)
-    #         future_prices = self.client.get_historical_prices(f'{coin}-0930', 3600, start_timestamp, end_timestamp)
-    #
-    #         N = len(future_prices)
-    #         perp_prices = perp_prices[len(perp_prices) - N:]
-    #
-    #         times = [price['startTime'] for price in perp_prices]
-    #         dates = mdates.num2date(mdates.datestr2num(times))
-    #         dates = np.array(dates)
-    #
-    #         # spot_prices = np.array([price['close'] for price in spot_prices])
-    #         perp_prices = np.array([price['close'] for price in perp_prices])
-    #         future_prices = np.array([price['close'] for price in future_prices])
-    #
-    #         if len(perp_prices) != len(future_prices):
-    #             print('skip')
-    #             continue
-    #
-    #         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 6), sharex='col')
-    #         fig.suptitle(coin)
-    #
-    #         # ax.plot(dates, spot_prices)
-    #         ax1.plot(dates, perp_prices)
-    #         ax1.plot(dates, future_prices)
-    #         ax1.legend(['perp', 'future'])
-    #         ax1.set_ylabel('$')
-    #         ax1.grid()
-    #
-    #         ax2.plot(dates, (perp_prices - future_prices) / perp_prices * 100)
-    #         ax2.set_ylabel('%')
-    #         ax2.grid()
-    #
-    #         fig.autofmt_xdate()
-    #
-    #     plt.show()
-    #
-    # def plot_carry_expired(self):
-    #     print('start')
-    #
-    #     coin = 'AAVE'
-    #     resolution = 14400
-    #
-    #     start_timestamp = util.date_to_timestamp_sec(2022, 3, 20, 0)
-    #     end_timestamp = util.date_to_timestamp_sec(2022, 6, 24, 0)
-    #
-    #     print('getting perp prices')
-    #     perp_prices = self.client.get_historical_prices(f'{coin}-PERP', resolution, start_timestamp, end_timestamp)
-    #     print('getting future prices')
-    #     future_prices = self.client.get_historical_prices(f'{coin}-0624', resolution, start_timestamp, end_timestamp)
-    #
-    #     times = [price['startTime'] for price in perp_prices]
-    #     print(len(perp_prices), len(future_prices))
-    #
-    #     dates = mdates.num2date(mdates.datestr2num(times))
-    #     dates = np.array(dates)
-    #
-    #     perp_prices = np.array([price['close'] for price in perp_prices])
-    #     future_prices = np.array([price['close'] for price in future_prices])
-    #
-    #     print('plotting')
-    #     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 6), sharex='col')
-    #     fig.suptitle(coin)
-    #
-    #     ax1.plot(dates, perp_prices, linewidth=1)
-    #     ax1.plot(dates, future_prices, linewidth=1)
-    #     ax1.legend(['perp', 'future'])
-    #     ax1.set_ylabel('$')
-    #     ax1.grid()
-    #
-    #     ax2.plot(dates, (perp_prices - future_prices) / perp_prices * 100)
-    #     ax2.set_ylabel('%')
-    #     ax2.grid()
-    #
-    #     fig.autofmt_xdate()
-    #     plt.show()
+# def carry(self):
+#     futs = self.client.get_all_futs()
+#
+#     for i in futs:
+#         if i['type'] == 'fut' and not i['perpetual']:
+#
+#             spotSymbol = i['underlying']
+#             futSymbol = i['name']
+#
+#             try:
+#                 ul_market = self.client.get_single_market(f'{spotSymbol}/USD')
+#             except Exception as e:
+#                 print(e)
+#                 continue
+#
+#             ul_price = ul_market['price']
+#             fut_price = i['mark']
+#
+#             # higher = max(ul_price, futPrice)
+#             # lower = min(ul_price, futPrice)
+#             basis = (fut_price - ul_price) / ul_price * 100
+#
+#             if abs(basis) > 3:
+#                 print(f'{spotSymbol}: spot {ul_price}, {futSymbol} {fut_price}, basis {round(basis, 1)} %')
+#
+# def analyze_carry(self):
+#     # mean rev: YFI SUSHI FTM AAVE
+#     # crazy: WAVES GST GMT BAL AXS
+#
+#     coins = {}  # {'coin': [a,b,c]}
+#
+#     markets = self.client.get_markets()
+#     # expired_futs = client.get_expired_futs()
+#     # expired_futs_btc = [i for i in expired_futs if i['underlying'] == 'BTC' and i['type'] == 'fut']
+#
+#     for instrument in markets:
+#
+#         if instrument['quoteCurrency'] not in ['USD', None]:
+#             continue
+#         if instrument['futType'] == 'move':
+#             continue
+#         if instrument['restricted']:
+#             continue
+#
+#         ul_name = instrument['underlying']
+#         if ul_name is None:
+#             ul_name = instrument['baseCurrency']
+#
+#         if ul_name in ['BTC', 'CEL', 'DOGE', 'ETH', 'XRP', 'USDT']:
+#             continue
+#
+#         if ul_name in coins:
+#             coins[ul_name].append(instrument)
+#         else:
+#             coins[ul_name] = [instrument]
+#
+#     coins = {key: value for (key, value) in coins.items() if len(value) > 2}
+#
+#     start_timestamp = util.date_to_timestamp_sec(2022, 6, 1, 0)
+#     end_timestamp = util.timestamp_now()
+#
+#     for coin in coins:
+#         print(coin)
+#         # spot_prices = client.get_historical_prices(f'{coin}/USD', 3600, start_timestamp, end_timestamp)
+#         perp_prices = self.client.get_historical_prices(f'{coin}-PERP', 3600, start_timestamp, end_timestamp)
+#         fut_prices = self.client.get_historical_prices(f'{coin}-0930', 3600, start_timestamp, end_timestamp)
+#
+#         N = len(fut_prices)
+#         perp_prices = perp_prices[len(perp_prices) - N:]
+#
+#         times = [price['startTime'] for price in perp_prices]
+#         dates = mdates.num2date(mdates.datestr2num(times))
+#         dates = np.array(dates)
+#
+#         # spot_prices = np.array([price['close'] for price in spot_prices])
+#         perp_prices = np.array([price['close'] for price in perp_prices])
+#         fut_prices = np.array([price['close'] for price in fut_prices])
+#
+#         if len(perp_prices) != len(fut_prices):
+#             print('skip')
+#             continue
+#
+#         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 6), sharex='col')
+#         fig.suptitle(coin)
+#
+#         # ax.plot(dates, spot_prices)
+#         ax1.plot(dates, perp_prices)
+#         ax1.plot(dates, fut_prices)
+#         ax1.legend(['perp', 'fut'])
+#         ax1.set_ylabel('$')
+#         ax1.grid()
+#
+#         ax2.plot(dates, (perp_prices - fut_prices) / perp_prices * 100)
+#         ax2.set_ylabel('%')
+#         ax2.grid()
+#
+#         fig.autofmt_xdate()
+#
+#     plt.show()
+#
+# def plot_carry_expired(self):
+#     print('start')
+#
+#     coin = 'AAVE'
+#     resolution = 14400
+#
+#     start_timestamp = util.date_to_timestamp_sec(2022, 3, 20, 0)
+#     end_timestamp = util.date_to_timestamp_sec(2022, 6, 24, 0)
+#
+#     print('getting perp prices')
+#     perp_prices = self.client.get_historical_prices(f'{coin}-PERP', resolution, start_timestamp, end_timestamp)
+#     print('getting fut prices')
+#     fut_prices = self.client.get_historical_prices(f'{coin}-0624', resolution, start_timestamp, end_timestamp)
+#
+#     times = [price['startTime'] for price in perp_prices]
+#     print(len(perp_prices), len(fut_prices))
+#
+#     dates = mdates.num2date(mdates.datestr2num(times))
+#     dates = np.array(dates)
+#
+#     perp_prices = np.array([price['close'] for price in perp_prices])
+#     fut_prices = np.array([price['close'] for price in fut_prices])
+#
+#     print('plotting')
+#     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 6), sharex='col')
+#     fig.suptitle(coin)
+#
+#     ax1.plot(dates, perp_prices, linewidth=1)
+#     ax1.plot(dates, fut_prices, linewidth=1)
+#     ax1.legend(['perp', 'fut'])
+#     ax1.set_ylabel('$')
+#     ax1.grid()
+#
+#     ax2.plot(dates, (perp_prices - fut_prices) / perp_prices * 100)
+#     ax2.set_ylabel('%')
+#     ax2.grid()
+#
+#     fig.autofmt_xdate()
+#     plt.show()

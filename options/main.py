@@ -1,3 +1,6 @@
+# TODO plot vol curve for btc and eth on deribit
+
+
 import pandas as pd
 import matplotlib as mat
 
