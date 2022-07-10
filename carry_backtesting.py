@@ -2,44 +2,15 @@ import pandas as pd
 import util
 from util import logger
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 import numpy as np
 import datetime as dt
+from trading import Position
 
-COIN = '1INCH'
+COIN = 'AAVE'
 TRADE_AMOUNT = 100000  # usd
 CLOSE_THRESHOLD = 0.1  # %
 INIT_OPEN_THRESHOLD = 1.  # %
 RESULTS_FOLDER = './results'
-
-
-class Position:
-    def __init__(self, entry_price=None, size=0):
-        self.entry_price = entry_price
-        self.size = size
-
-    def __str__(self):
-        return f'Entry price: {self.entry_price}, size: {self.size}'
-
-    def update(self, price: float, size: float):
-        if self.entry_price is None:
-            self.entry_price = price
-        else:
-            self.entry_price = (self.entry_price * self.size + price * size) / (self.size + size)
-        self.size += size
-
-    def reset(self):
-        self.entry_price = None
-        self.size = 0
-
-    def get_pnl(self, price: float) -> float:
-        if self.entry_price is None:
-            return 0
-        # return price * self.size * (price - self.entry_price) / self.entry_price
-        return (price - self.entry_price) * self.size
-
-    def notional_value(self, price: float) -> float:
-        return abs(price * self.size)
 
 
 class Account:
@@ -59,6 +30,8 @@ class Account:
         self.last_open_basis = 0.
         self.current_open_threshold = INIT_OPEN_THRESHOLD
 
+        self.funding_rate = 0.
+        self.funding_paid = 0.
         self.cum_funding_paid = 0.
 
         self._results = []
@@ -70,8 +43,6 @@ class Account:
         return self.perp_position.size != 0 or self.fut_position.size != 0
 
     def next(self, date: str, perp_price: float, fut_price: float, funding_rate: float):
-        # todo flowchart
-
         self.date = date
         self.perp_price = perp_price
         self.fut_price = fut_price
@@ -92,10 +63,14 @@ class Account:
             self.current_open_threshold = max(self.current_open_threshold + 1., self.basis)
             self.last_open_basis = self.basis
 
-        funding_paid = funding_rate * self.perp_position.size * self.perp_price
-        self.cum_funding_paid += funding_paid
+        # compute funding
+        self.funding_rate = funding_rate
+        self.funding_paid = funding_rate * self.perp_position.size * self.perp_price
+        self.cum_funding_paid += self.funding_paid
 
-        # append new row
+        self.update_results()
+
+    def update_results(self):
         self._results.append({
             'Date': self.date,
             'PerpPrice': self.perp_price,
@@ -111,8 +86,8 @@ class Account:
             'TradeClose': True if (self.date in self.trades_close) else False,
             'Pnl': self.get_tot_pnl(self.perp_price, self.fut_price),
             'Equity': self.get_equity(self.perp_price, self.fut_price),
-            'FundingRate': funding_rate,
-            'FundingPaid': funding_paid,
+            'FundingRate': self.funding_rate,
+            'FundingPaid': self.funding_paid,
             'CumFundingPaid': self.cum_funding_paid,
         })
 
@@ -136,15 +111,6 @@ class Account:
         self.trades_open[self.date] = self.basis
 
     def close_trade(self):
-        if self.perp_position.size > 0:
-            print(
-                f'{self.date} close trade, sell {round(self.perp_position.size, 2)} perp @ {self.perp_price} pnl {self.perp_position.get_pnl(self.perp_price)},'
-                f' buy {round(self.fut_position.size, 2)} fut @ {self.fut_price} pnl {self.fut_position.get_pnl(self.fut_price)}')
-        else:
-            print(
-                f'{self.date} close trade, buy {round(self.perp_position.size, 2)} perp @ {self.perp_price} pnl {self.perp_position.get_pnl(self.perp_price)},'
-                f' sell {round(self.fut_position.size, 2)} fut @ {self.fut_price} pnl {self.fut_position.get_pnl(self.fut_price)}')
-
         profit = self.perp_position.get_pnl(self.perp_price) + self.fut_position.get_pnl(self.fut_price)
         self.tot_profit += profit
         self.perp_position.reset()
@@ -165,6 +131,11 @@ class Account:
         # df['Timestamp'] = [dt.datetime.fromtimestamp(ts) for ts in df['Date']]  # add a column with a date format
         # df.set_index('Timestamp', inplace=True)
         return df
+
+    def save_results(self, path: str):
+        results = self.get_results()
+        util.create_folder(RESULTS_FOLDER)
+        results.to_csv(path)
 
 
 class CarryBacktesting:
@@ -210,12 +181,10 @@ class CarryBacktesting:
 
         if self.account.is_trade_on():
             self.account.close_trade()
+            self.account.update_results()
 
         logger.info(self.account)
-
-        results = self.account.get_results()
-        util.create_folder(RESULTS_FOLDER)
-        results.to_csv(self.results_path)
+        self.account.save_results(self.results_path)
 
     @staticmethod
     def plot(file_path: str):
@@ -261,7 +230,7 @@ class CarryBacktesting:
         ax3.grid()
 
         ax3_ = ax3.twinx()
-        ax3_.plot(dates, pnl, linewidth=0.3)
+        ax3_.plot(dates, pnl, color='orange', linewidth=0.3)
         ax3_.set_ylabel('Pnl', labelpad=10)
 
         # ax4
@@ -273,7 +242,7 @@ class CarryBacktesting:
         ax4.grid()
 
         ax4_ = ax4.twinx()
-        ax4_.plot(dates, funding_rate * 100, '--', linewidth=0.3)
+        ax4_.plot(dates, funding_rate * 100, color='orange', linewidth=0.3)
         ax4_.set_ylabel('%', labelpad=10).set_rotation(0)
 
         fig.autofmt_xdate()
@@ -341,16 +310,14 @@ class CarryBacktesting:
 
 
 def main():
-    CarryBacktesting.check_integrity('./results/1INCH-PERP_1INCH-0624.csv')
-    return
-    _resolution = 3600
     _start_ts = util.date_to_timestamp(2022, 3, 20, 0)
     _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
 
     backtester = CarryBacktesting()
-    backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', _resolution, _start_ts, _end_ts, overwrite_results=True)
+    backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', 3600, _start_ts, _end_ts, overwrite_results=True)
     logger.info('done')
 
 
 if __name__ == '__main__':
+    # CarryBacktesting.check_integrity('./results/1INCH-PERP_1INCH-0624.csv')
     main()
