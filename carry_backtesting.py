@@ -212,7 +212,7 @@ class CarryBacktesting:
         ax1.plot(dates, perp_prices, linewidth=1)
         ax1.plot(dates, fut_prices, linewidth=1)
         ax1.legend(['perp', 'fut'])
-        ax1.set_ylabel('$', labelpad=10).set_rotation(0)
+        ax1.set_ylabel('Price $', labelpad=10)
         ax1.grid()
 
         # ax2
@@ -220,30 +220,38 @@ class CarryBacktesting:
         ax2.plot(trades_open_dict.keys(), trades_open_dict.values(), 'ro', mfc='none')  # plot open trades
         ax2.plot(trades_close_dict.keys(), trades_close_dict.values(), 'rx')  # plot close trades
         ax2.legend(['basis', 'open', 'close'])
-        ax2.set_ylabel('%').set_rotation(0)
+        ax2.set_ylabel('Basis %')
         ax2.grid()
 
         # ax3
-        ax3.plot(dates, equity, linewidth=1)
+        lns1 = ax3.plot(dates, equity, linewidth=1, label='equity')
         # ax3.legend(['equity'])
-        ax3.set_ylabel('Equity', labelpad=10)
+        ax3.set_ylabel('Equity $', labelpad=10)
         ax3.grid()
 
         ax3_ = ax3.twinx()
-        ax3_.plot(dates, pnl, color='orange', linewidth=0.3)
-        ax3_.set_ylabel('Pnl', labelpad=10)
+        lns2 = ax3_.plot(dates, pnl, color='orange', linewidth=0.3, label='pnl')
+        ax3_.set_ylabel('Pnl $', labelpad=10)
+
+        lns = lns1 + lns2
+        labs = [label.get_label() for label in lns]
+        ax3.legend(lns, labs)
 
         # ax4
-        ax4.plot(dates, funding_paid, linewidth=1)
+        lns1 = ax4.plot(dates, funding_paid, linewidth=1, label='funding paid')
         # ax4.fill_between(dates, 0, funding_paid, alpha=0.5, where=funding_paid > 0, facecolor='r')
         # ax4.fill_between(dates, 0, funding_paid, alpha=0.5, where=funding_paid < 0, facecolor='g')
         # ax4.legend(['funding rate', 'funding paid'])
-        ax4.set_ylabel('$', labelpad=10).set_rotation(0)
+        ax4.set_ylabel('Funding paid $', labelpad=10)
         ax4.grid()
 
         ax4_ = ax4.twinx()
-        ax4_.plot(dates, funding_rate * 100, color='orange', linewidth=0.3)
-        ax4_.set_ylabel('%', labelpad=10).set_rotation(0)
+        lns2 = ax4_.plot(dates, funding_rate * 100, color='orange', linewidth=0.3, label='funding rate')
+        ax4_.set_ylabel('Funding rate %', labelpad=10)
+
+        lns = lns1 + lns2
+        labs = [label.get_label() for label in lns]
+        ax4.legend(lns, labs)
 
         fig.autofmt_xdate()
         fig.tight_layout()
@@ -314,7 +322,7 @@ def main():
     _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
 
     backtester = CarryBacktesting()
-    backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', 3600, _start_ts, _end_ts, overwrite_results=True)
+    backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', 3600, _start_ts, _end_ts, overwrite_results=False)
     logger.info('done')
 
 
