@@ -33,9 +33,10 @@ class Position:
         self.size = 0
 
     def get_pnl(self, price: float) -> float:
-        if self.entry_price is None or price == self.entry_price:
+        if self.entry_price is None:
             return 0
-        return price * self.size * (price - self.entry_price) / self.entry_price
+        # return price * self.size * (price - self.entry_price) / self.entry_price
+        return (price - self.entry_price) * self.size
 
     def notional_value(self, price: float) -> float:
         return abs(price * self.size)
@@ -195,7 +196,7 @@ class CarryBacktesting:
             self.dates = np.array(dates)
             self._backtest()
 
-        self._plot()
+        self.plot(self.results_path)
 
     def _backtest(self):
         for i, date in enumerate(self.dates):
@@ -213,10 +214,11 @@ class CarryBacktesting:
         util.create_folder(RESULTS_FOLDER)
         results.to_csv(self.results_path)
 
-    def _plot(self):
+    @staticmethod
+    def plot(file_path: str):
         logger.info('plotting')
 
-        df = util.load_results(self.results_path)
+        df = util.load_results(file_path)
 
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 6), sharex='col')
         fig.suptitle(COIN)
@@ -252,12 +254,12 @@ class CarryBacktesting:
         # ax3
         ax3.plot(dates, equity, linewidth=1)
         # ax3.legend(['equity'])
-        ax3.set_ylabel('$', labelpad=10).set_rotation(0)
+        ax3.set_ylabel('Equity', labelpad=10)
         ax3.grid()
 
         ax3_ = ax3.twinx()
         ax3_.plot(dates, pnl, linewidth=0.3)
-        ax3_.set_ylabel('%', labelpad=10).set_rotation(0)
+        ax3_.set_ylabel('Pnl', labelpad=10)
 
         # ax4
         ax4.plot(dates, funding_paid, linewidth=1)
@@ -284,29 +286,46 @@ class CarryBacktesting:
             perp_price, perp_price_ = df['PerpPrice'][i], df['PerpPrice'][i - 1]
             perp_pos_size, perp_pos_size_ = df['PerpPosSize'][i], df['PerpPosSize'][i - 1]
             perp_pos_entry_price, perp_pos_entry_price_ = df['PerpPosEntryPrice'][i], df['PerpPosEntryPrice'][i - 1]
+            perp_pos_pnl, perp_pos_pnl_ = df['PerpPosPnl'][i], df['PerpPosPnl'][i - 1]
             fut_price, fut_price_ = df['FutPrice'][i], df['FutPrice'][i - 1]
             fut_pos_size, fut_pos_size_ = df['FutPosSize'][i], df['FutPosSize'][i - 1]
             fut_pos_entry_price, fut_pos_entry_price_ = df['FutPosEntryPrice'][i], df['FutPosEntryPrice'][i - 1]
+            fut_pos_pnl, fut_pos_pnl_ = df['FutPosPnl'][i], df['FutPosPnl'][i - 1]
             basis, basis_ = df['Basis'][i], df['Basis'][i - 1]
-            trade_open, trade_open_ = df['TradeOpen'][i], df['TradeOpen'][i - 1]
-            trade_close, trade_close_ = df['TradeClose'][i], df['TradeClose'][i - 1]
+            trade_open = df['TradeOpen'][i]
+            trade_close = df['TradeClose'][i]
             pnl, pnl_ = df['Pnl'][i], df['Pnl'][i - 1]
             equity, equity_ = df['Equity'][i], df['Equity'][i - 1]
             funding_rate, funding_rate_ = df['FundingRate'][i], df['FundingRate'][i - 1]
             funding_paid, funding_paid_ = df['FundingPaid'][i], df['FundingPaid'][i - 1]
             cum_funding_rate, cum_funding_rate_ = df['CumFundingRatePaid'][i], df['CumFundingRatePaid'][i - 1]
 
+            assert not (trade_open and trade_close)
+            if trade_open:
+                pass
+            elif trade_close:
+                pass
+            else:
+                d_perp_price = perp_price - perp_price_
+                d_perp_pos_pnl = perp_pos_pnl - perp_pos_pnl_
+                np.testing.assert_almost_equal(d_perp_price * perp_pos_size, d_perp_pos_pnl)
+
+                d_fut_price = fut_price - fut_price_
+                d_fut_pos_pnl = fut_pos_pnl - fut_pos_pnl_
+                np.testing.assert_almost_equal(d_fut_price * fut_pos_size, d_fut_pos_pnl)
+
             if i > 5:
                 break
 
 
 if __name__ == '__main__':
-    _resolution = 3600
-    _start_ts = util.date_to_timestamp(2022, 3, 20, 0)
-    _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
-
-    backtester = CarryBacktesting()
-    backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', _resolution, _start_ts, _end_ts, False)
+    CarryBacktesting.check_integrity('./results/1INCH-PERP_1INCH-0624.csv')
+    # _resolution = 3600
+    # _start_ts = util.date_to_timestamp(2022, 3, 20, 0)
+    # _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
+    #
+    # backtester = CarryBacktesting()
+    # backtester.backtest_carry(f'{COIN}-PERP', f'{COIN}-0624', _resolution, _start_ts, _end_ts, True)
     logger.info('done')
 
 # def carry(self):
