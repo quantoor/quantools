@@ -82,7 +82,7 @@ def get_historical_funding(instrument: str, start_ts: int, end_ts: int, plot: bo
     rates = []
     first_ts_received = end_ts
 
-    while first_ts_received - 3600 > start_ts:
+    while first_ts_received - 3600 >= start_ts:
         res = client.get_funding_rates(instrument, start_ts, first_ts_received - 3600)
         first_ts_received = iso_date_to_timestamp(res[-1]['time'])
         for i in res:

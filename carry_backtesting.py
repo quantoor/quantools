@@ -36,16 +36,13 @@ class CarryMarketData:
         # get future prices
         self.timestamps, self.fut_prices = util.get_historical_prices(self.fut_name, self.resolution, 0, expiry_ts)
 
-        # start timestamp
-        start_ts = self.timestamps[0]
+        # start timestamp - skip the first 5 hours
+        start_ts = self.timestamps[4]
+        self.timestamps, self.fut_prices = self.timestamps[4:], self.fut_prices[4:]
 
         # get perpetual prices for the same period of the future
         timestamps_perp, self.perp_prices = util.get_historical_prices(self.perp_name, self.resolution, start_ts,
                                                                        expiry_ts)
-
-        # todo
-        print(self.timestamps[-5:])
-        print(timestamps_perp[-5:])
 
         rates_ts, self.funding_rates = util.get_historical_funding(self.perp_name, start_ts, expiry_ts)
 
@@ -218,18 +215,16 @@ class CarryBacktesting:
     def backtest_carry(self, coin: str, expiration: str, resolution: int,
                        use_cache: bool = True,
                        overwrite_results: bool = False) -> matplotlib.figure:
-        self.coin = coin
+        self.coin = coin.upper()
         self.expiration = expiration
 
-        perp = f'{coin}-PERP'
-        fut = f'{coin}-{expiration}'
-        name_path = f'{RESULTS_FOLDER}/{perp}_{fut}'
+        name_path = f'{RESULTS_FOLDER}/{self.coin}-{expiration}'
         self.results_path = name_path + '.csv'
 
         if not overwrite_results and util.file_exists(self.results_path):
             logger.debug(f'results found at {self.results_path}')
         else:
-            market_data = CarryMarketData(coin, expiration, resolution)
+            market_data = CarryMarketData(self.coin, expiration, resolution)
             if use_cache and market_data.read_from_file():
                 logger.debug(f'Read market data from {market_data.file_path}')
             else:
@@ -271,18 +266,16 @@ class CarryBacktesting:
         df = util.load_results(self.results_path)
 
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 6), sharex='col')
-        fig.suptitle(f'{self.coin}-PERP, {self.coin}-{self.expiration}')
+        fig.suptitle(f'{self.coin} - {self.expiration}')
 
         dates = df['Date']
         perp_prices = df['PerpPrice']
         fut_prices = df['FutPrice']
         basis = df['Basis']
         trades_open_dict = {date: basis for date, basis, trade_open in zip(df['Date'], df['Basis'], df['TradeOpen'])
-                            if
-                            trade_open}
+                            if trade_open}
         trades_close_dict = {date: basis for date, basis, trade_close in
-                             zip(df['Date'], df['Basis'], df['TradeClose'])
-                             if trade_close}
+                             zip(df['Date'], df['Basis'], df['TradeClose']) if trade_close}
         pnl = df['Pnl']
         equity = df['Equity']
         funding_rate = df['FundingRate']
@@ -398,10 +391,8 @@ class CarryBacktesting:
 
 
 def main():
-    coin = 'AAVE'
+    coin = 'btc'
     fut_expiration = '0624'
-    # _start_ts = util.date_to_timestamp(2022, 3, 20, 0)
-    # _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
 
     backtester = CarryBacktesting()
     backtester.backtest_carry(coin, fut_expiration, 3600,
@@ -414,5 +405,5 @@ def main():
 if __name__ == '__main__':
     # CarryBacktesting.check_integrity('./results/1INCH-PERP_1INCH-0624.csv')
     main()
-    # c = CarryMarketData('BTC', '0624', 3600)
+    # c = CarryMarketData('AAVE', '0624', 3600)
     # c.download()
