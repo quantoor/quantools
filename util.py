@@ -58,6 +58,8 @@ def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_t
 
     while first_ts_received - resolution > start_ts:
         res = client.get_historical_prices(instrument, resolution, start_ts, first_ts_received - resolution)
+        if len(res) == 0:
+            break
         first_ts_received = int(res[0]['time'] / 1000)
         for i in reversed(res):
             timestamps.insert(0, int(i['time'] / 1000))
@@ -71,6 +73,27 @@ def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_t
 
     print('done')
     return np.array(timestamps), np.array(prices)
+
+
+# def get_historical_prices_carry(future: str, resolution: int):
+#     # todo move this into CarryMarketData.download()
+#
+#     coin = future.split('-')[0]
+#     res = client.get_future(future)
+#     expiry_ts = iso_date_to_timestamp(res['expiry'])
+#
+#     # get future prices
+#     timestamps_fut, fut_prices = get_historical_prices(future, resolution, 0, expiry_ts)
+#
+#     # start timestamp
+#     start_ts = timestamps_fut[0]
+#
+#     # get perpetual prices for the same period of the future
+#     timestamps_perp, perp_prices = get_historical_prices(f'{coin}-PERP', resolution, start_ts, expiry_ts)
+#
+#     assert timestamps_fut.all() == timestamps_perp.all()
+#
+#     return timestamps_fut, perp_prices, fut_prices
 
 
 def get_historical_funding(instrument: str, start_ts: int, end_ts: int, plot: bool = False):
@@ -129,6 +152,16 @@ def get_expired_futures():
     return expirations_dict
 
 
+def get_future_expiration_ts(future: str):
+    res = client.get_future(future)
+    return iso_date_to_timestamp(res['expiry'])
+
+
 if __name__ == '__main__':
-    # c = get_all_futures_coins()
     print(get_expired_futures())
+    # start_ts = 0
+    # end_ts = date_to_timestamp(2022, 6, 24, 0)
+    #
+    # res = get_historical_prices('BTC-0624', 3600, start_ts, end_ts)
+    # print(len(res[0]), len(res[1]))
+    # timestamps, perp_prices, fut_prices = get_historical_prices_carry('BTC-0624', 3600)

@@ -7,11 +7,45 @@ import numpy as np
 import datetime as dt
 from trading import Position
 
-
 TRADE_AMOUNT = 100000  # usd
 CLOSE_THRESHOLD = 0.1  # %
 INIT_OPEN_THRESHOLD = 1.  # %
+CACHE_FOLDER = './cache'
 RESULTS_FOLDER = './results'
+
+
+class CarryMarketData:
+    def __init__(self, coin: str, expiration: str, resolution: int):
+        self.coin = coin
+        self.expiration = expiration
+        self.resolution = resolution
+
+        self.perp_name = f'{self.coin}-PERP'
+        self.fut_name = f'{self.coin}-{self.expiration}'
+
+        self.timestamps = np.array([])
+        self.fut_prices = np.array([])
+        self.perp_prices = np.array([])
+
+    def download(self):
+        expiry_ts = util.get_future_expiration_ts(self.fut_name)
+
+        # get future prices
+        self.timestamps, self.fut_prices = util.get_historical_prices(self.fut_name, self.resolution, 0, expiry_ts)
+
+        # start timestamp
+        start_ts = self.timestamps[0]
+
+        # get perpetual prices for the same period of the future
+        timestamps_perp, self.perp_prices = util.get_historical_prices(self.perp_name, self.resolution, start_ts, expiry_ts)
+
+        assert self.timestamps.all() == timestamps_perp.all()
+
+    def save_to_file(self, path: str):
+        pass
+
+    def read_from_file(self, path: str):
+        pass
 
 
 class Account:
