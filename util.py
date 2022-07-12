@@ -95,3 +95,40 @@ def get_historical_funding(instrument: str, start_ts: int, end_ts: int, plot: bo
 
     print('done')
     return np.array(timestamps), np.array(rates)
+
+
+def get_all_futures_coins():
+    markets = client.get_markets()
+    coins = set()
+    for i in markets:
+        if i['type'] == 'future' and not i['isEtfMarket'] and not i['restricted']:
+            coins.add(i['underlying'])
+    return sorted(list(coins))
+
+
+def get_expired_futures():
+    coins = get_all_futures_coins()
+
+    expirations = client.get_expired_futures()
+    expirations_dict = dict()
+    for i in expirations:
+        underlying = i['underlying']
+
+        if underlying in coins and i['type'] == 'future':
+            name = i['name']
+            expiration = name.split('-')[1]
+
+            if expiration not in expirations_dict:
+                expirations_dict[expiration] = [underlying]
+            else:
+                expirations_dict[expiration].append(underlying)
+
+    for k, v in expirations_dict.items():
+        expirations_dict[k] = sorted(v)
+
+    return expirations_dict
+
+
+if __name__ == '__main__':
+    # c = get_all_futures_coins()
+    print(get_expired_futures())
