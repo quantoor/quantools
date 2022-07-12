@@ -75,27 +75,6 @@ def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_t
     return np.array(timestamps), np.array(prices)
 
 
-# def get_historical_prices_carry(future: str, resolution: int):
-#     # todo move this into CarryMarketData.download()
-#
-#     coin = future.split('-')[0]
-#     res = client.get_future(future)
-#     expiry_ts = iso_date_to_timestamp(res['expiry'])
-#
-#     # get future prices
-#     timestamps_fut, fut_prices = get_historical_prices(future, resolution, 0, expiry_ts)
-#
-#     # start timestamp
-#     start_ts = timestamps_fut[0]
-#
-#     # get perpetual prices for the same period of the future
-#     timestamps_perp, perp_prices = get_historical_prices(f'{coin}-PERP', resolution, start_ts, expiry_ts)
-#
-#     assert timestamps_fut.all() == timestamps_perp.all()
-#
-#     return timestamps_fut, perp_prices, fut_prices
-
-
 def get_historical_funding(instrument: str, start_ts: int, end_ts: int, plot: bool = False):
     print(f'downloading historical funding rate of {instrument}...', end='')
 

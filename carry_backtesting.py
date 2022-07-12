@@ -26,6 +26,9 @@ class CarryMarketData:
         self.timestamps = np.array([])
         self.fut_prices = np.array([])
         self.perp_prices = np.array([])
+        self.funding_rates = np.array([])
+
+        self.file_path = f'{CACHE_FOLDER}/{coin}_{expiration}_{str(resolution)}.csv'
 
     def download(self):
         expiry_ts = util.get_future_expiration_ts(self.fut_name)
@@ -37,15 +40,42 @@ class CarryMarketData:
         start_ts = self.timestamps[0]
 
         # get perpetual prices for the same period of the future
-        timestamps_perp, self.perp_prices = util.get_historical_prices(self.perp_name, self.resolution, start_ts, expiry_ts)
+        timestamps_perp, self.perp_prices = util.get_historical_prices(self.perp_name, self.resolution, start_ts,
+                                                                       expiry_ts)
 
+        # todo
+        print(self.timestamps[-5:])
+        print(timestamps_perp[-5:])
+
+        rates_ts, self.funding_rates = util.get_historical_funding(self.perp_name, start_ts, expiry_ts)
+
+        assert len(self.timestamps) == len(timestamps_perp)
+        assert len(self.timestamps) == len(rates_ts)
         assert self.timestamps.all() == timestamps_perp.all()
+        assert self.timestamps.all() == rates_ts.all()
 
-    def save_to_file(self, path: str):
-        pass
+        self.save_to_file()
 
-    def read_from_file(self, path: str):
-        pass
+    def save_to_file(self):
+        df = pd.DataFrame({
+            'Timestamp': self.timestamps,
+            'PerpPrices': self.perp_prices,
+            'FutPrices': self.fut_prices,
+            'FundingRate': self.funding_rates
+        })
+        util.create_folder(CACHE_FOLDER)
+        df.to_csv(self.file_path)
+
+    def read_from_file(self) -> bool:
+        try:
+            df = pd.read_csv(self.file_path)  # , parse_dates=['Timestamp'])  # , index_col='Date')
+        except FileNotFoundError:
+            return False
+        self.timestamps = df['Timestamp']
+        self.perp_prices = df['PerpPrices']
+        self.fut_prices = df['FutPrices']
+        self.funding_rates = df['FundingRate']
+        return True
 
 
 class Account:
@@ -185,7 +215,8 @@ class CarryBacktesting:
 
         self.results_path = ''
 
-    def backtest_carry(self, coin: str, expiration: str, resolution: int, start_ts: int, end_ts: int,
+    def backtest_carry(self, coin: str, expiration: str, resolution: int,
+                       use_cache: bool = True,
                        overwrite_results: bool = False) -> matplotlib.figure:
         self.coin = coin
         self.expiration = expiration
@@ -198,18 +229,20 @@ class CarryBacktesting:
         if not overwrite_results and util.file_exists(self.results_path):
             logger.debug(f'results found at {self.results_path}')
         else:
-            perp_ts, self.perp_prices = util.get_historical_prices(perp, resolution, start_ts, end_ts)
-            fut_ts, self.fut_prices = util.get_historical_prices(fut, resolution, start_ts, end_ts)
-            rates_ts, self.funding_rates = util.get_historical_funding(perp, start_ts, end_ts)
+            market_data = CarryMarketData(coin, expiration, resolution)
+            if use_cache and market_data.read_from_file():
+                logger.debug(f'Read market data from {market_data.file_path}')
+            else:
+                market_data.download()
 
-            assert perp_ts.all() == fut_ts.all()
-            assert len(self.perp_prices) == len(self.fut_prices)
-            assert perp_ts.all() == rates_ts.all()
-            assert len(self.perp_prices) == len(self.funding_rates)
+            timestamps = market_data.timestamps
+            self.perp_prices = market_data.perp_prices
+            self.fut_prices = market_data.fut_prices
+            self.funding_rates = market_data.funding_rates
 
             # dates = mdates.num2date(mdates.datestr2num(times))
             # dates = [dt.datetime.fromtimestamp(ts).strftime("%Y-%m-%d_%H:%M:%S") for ts in perp_ts]
-            dates = [dt.datetime.fromtimestamp(ts).isoformat() for ts in perp_ts]
+            dates = [dt.datetime.fromtimestamp(ts).isoformat() for ts in timestamps]
             self.dates = np.array(dates)
             self._backtest()
 
@@ -244,9 +277,11 @@ class CarryBacktesting:
         perp_prices = df['PerpPrice']
         fut_prices = df['FutPrice']
         basis = df['Basis']
-        trades_open_dict = {date: basis for date, basis, trade_open in zip(df['Date'], df['Basis'], df['TradeOpen']) if
+        trades_open_dict = {date: basis for date, basis, trade_open in zip(df['Date'], df['Basis'], df['TradeOpen'])
+                            if
                             trade_open}
-        trades_close_dict = {date: basis for date, basis, trade_close in zip(df['Date'], df['Basis'], df['TradeClose'])
+        trades_close_dict = {date: basis for date, basis, trade_close in
+                             zip(df['Date'], df['Basis'], df['TradeClose'])
                              if trade_close}
         pnl = df['Pnl']
         equity = df['Equity']
@@ -365,11 +400,13 @@ class CarryBacktesting:
 def main():
     coin = 'AAVE'
     fut_expiration = '0624'
-    _start_ts = util.date_to_timestamp(2022, 3, 20, 0)
-    _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
+    # _start_ts = util.date_to_timestamp(2022, 3, 20, 0)
+    # _end_ts = util.date_to_timestamp(2022, 6, 24, 0)
 
     backtester = CarryBacktesting()
-    backtester.backtest_carry(coin, fut_expiration, 3600, _start_ts, _end_ts, overwrite_results=False)
+    backtester.backtest_carry(coin, fut_expiration, 3600,
+                              use_cache=False,
+                              overwrite_results=True)
     plt.show()
     logger.info('done')
 
@@ -377,3 +414,5 @@ def main():
 if __name__ == '__main__':
     # CarryBacktesting.check_integrity('./results/1INCH-PERP_1INCH-0624.csv')
     main()
+    # c = CarryMarketData('BTC', '0624', 3600)
+    # c.download()
