@@ -32,6 +32,8 @@ class CarryMarketData:
 
     def download(self):
         expiry_ts = util.get_future_expiration_ts(self.fut_name)
+        if expiry_ts == 0:
+            raise Exception(f'Future {self.fut_name} is not found, skip')
 
         # get future prices
         self.timestamps, self.fut_prices = util.get_historical_prices(self.fut_name, self.resolution, 0, expiry_ts)
@@ -76,10 +78,10 @@ class CarryMarketData:
 
 
 class Account:
-    def __init__(self, init_balance: float):
+    def __init__(self):
         self.perp_position = Position()
         self.fut_position = Position()
-        self.tot_profit = init_balance
+        self.tot_profit = 0.
 
         self.perp_price = 0.
         self.fut_price = 0.
@@ -96,7 +98,7 @@ class Account:
         self.funding_paid = 0.
         self.cum_funding_paid = 0.
 
-        self._results = []
+        self.results = list()
 
     def __str__(self):
         return f'Total profit: {round(self.tot_profit, 2)}'
@@ -133,7 +135,7 @@ class Account:
         self.update_results()
 
     def update_results(self):
-        self._results.append({
+        self.results.append({
             'Date': self.date,
             'PerpPrice': self.perp_price,
             'PerpPosSize': self.perp_position.size,
@@ -188,15 +190,17 @@ class Account:
     def get_equity(self, perp_price: float, fut_price: float) -> float:
         return self.tot_profit + self.get_tot_pnl(perp_price, fut_price) - self.cum_funding_paid
 
+    def get_net_profit(self):
+        return self.tot_profit - self.cum_funding_paid
+
     def get_results(self) -> pd.DataFrame:
-        df = pd.DataFrame(self._results)
+        df = pd.DataFrame(self.results)
         # df['Timestamp'] = [dt.datetime.fromtimestamp(ts) for ts in df['Date']]  # add a column with a date format
         # df.set_index('Timestamp', inplace=True)
         return df
 
     def save_results(self, path: str):
         results = self.get_results()
-        util.create_folder(RESULTS_FOLDER)
         results.to_csv(path)
 
 
@@ -208,17 +212,19 @@ class CarryBacktesting:
         self.perp_prices = np.array([])
         self.fut_prices = np.array([])
         self.funding_rates = np.array([])
-        self.account = Account(0)
+        self.account = Account()
 
         self.results_path = ''
 
     def backtest_carry(self, coin: str, expiration: str, resolution: int,
                        use_cache: bool = True,
-                       overwrite_results: bool = False) -> matplotlib.figure:
+                       overwrite_results: bool = False):
         self.coin = coin.upper()
         self.expiration = expiration
 
-        name_path = f'{RESULTS_FOLDER}/{self.coin}-{expiration}'
+        results_folder_path = f'{RESULTS_FOLDER}/{expiration}'
+        name_path = f'{results_folder_path}/{self.coin}'
+        util.create_folder(results_folder_path)
         self.results_path = name_path + '.csv'
 
         if not overwrite_results and util.file_exists(self.results_path):
@@ -244,7 +250,7 @@ class CarryBacktesting:
         fig = self.get_results_plot_figure()
         fig_path = name_path + '.png'
         fig.savefig(fig_path)
-        return fig
+        return self.account.get_net_profit()
 
     def _backtest(self):
         for i, date in enumerate(self.dates):
@@ -391,14 +397,30 @@ class CarryBacktesting:
 
 
 def main():
-    coin = 'btc'
-    fut_expiration = '0624'
+    coins = util.get_all_futures_coins()
+    expiration = '0624'
 
-    backtester = CarryBacktesting()
-    backtester.backtest_carry(coin, fut_expiration, 3600,
-                              use_cache=False,
-                              overwrite_results=True)
-    plt.show()
+    results = list()
+
+    for coin in coins:
+        backtester = CarryBacktesting()
+
+        try:
+            profit = backtester.backtest_carry(coin, expiration, 3600,
+                                               use_cache=True,
+                                               overwrite_results=False)
+        except Exception as e:
+            logger.warning(e)
+            continue
+
+        results.append({
+            'Coin': coin,
+            'Profit': profit,
+        })
+
+    df = pd.DataFrame(results)
+    df.to_csv(f'{RESULTS_FOLDER}/{expiration}.csv')
+    # plt.show()
     logger.info('done')
 
 

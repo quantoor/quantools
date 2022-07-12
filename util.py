@@ -131,8 +131,12 @@ def get_expired_futures():
     return expirations_dict
 
 
-def get_future_expiration_ts(future: str):
-    res = client.get_future(future)
+def get_future_expiration_ts(future: str) -> int:
+    """Returns 0 if the future does not exist."""
+    try:
+        res = client.get_future(future)
+    except:
+        return 0
     return iso_date_to_timestamp(res['expiry'])
 
 
