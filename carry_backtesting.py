@@ -224,7 +224,8 @@ class CarryBacktesting:
 
         results_folder_path = f'{RESULTS_FOLDER}/{expiration}'
         name_path = f'{results_folder_path}/{self.coin}'
-        util.create_folder(results_folder_path)
+        if not util.folder_exists(results_folder_path):
+            util.create_folder(results_folder_path)
         self.results_path = name_path + '.csv'
 
         if not overwrite_results and util.file_exists(self.results_path):

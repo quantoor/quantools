@@ -31,8 +31,12 @@ def iso_date_to_timestamp(iso_date: str) -> int:
     return int(dt.datetime.fromisoformat(iso_date).timestamp())
 
 
-def file_exists(file_path: str) -> bool:
-    return Path(file_path).is_file()
+def file_exists(path: str) -> bool:
+    return Path(path).is_file()
+
+
+def folder_exists(path: str) -> bool:
+    return Path(path).is_dir()
 
 
 def create_folder(path: str):
