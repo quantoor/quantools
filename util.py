@@ -5,6 +5,7 @@ import pandas as pd
 from FtxClientRest import FtxClient
 import matplotlib.pyplot as plt
 import numpy as np
+import json
 
 logger = logging.getLogger("Log")
 logger.setLevel(logging.DEBUG)
@@ -131,13 +132,38 @@ def get_expired_futures():
     return expirations_dict
 
 
+expirations_file = 'cache/_expirations.csv'
+
+
+def get_cached_expirations():
+    if file_exists(expirations_file):
+        with open(expirations_file, 'r') as f:
+            return json.load(f)
+    else:
+        return {}
+
+
 def get_future_expiration_ts(future: str) -> int:
     """Returns 0 if the future does not exist."""
+
+    # read from cache
+    expirations = get_cached_expirations()
+    if future in expirations:
+        return expirations[future]
+
     try:
         res = client.get_future(future)
+        expiration = iso_date_to_timestamp(res['expiry'])
     except:
-        return 0
-    return iso_date_to_timestamp(res['expiry'])
+        expiration = -1
+
+    expirations[future] = expiration
+
+    # cache value
+    with open(expirations_file, 'w') as f:
+        f.write(json.dumps(expirations))
+
+    return expiration
 
 
 if __name__ == '__main__':

@@ -32,7 +32,7 @@ class CarryMarketData:
 
     def download(self):
         expiry_ts = util.get_future_expiration_ts(self.fut_name)
-        if expiry_ts == 0:
+        if expiry_ts == -1:
             raise Exception(f'Future {self.fut_name} is not found, skip')
 
         # get future prices
@@ -207,7 +207,7 @@ class Account:
 class CarryBacktesting:
     def __init__(self):
         self.coin = ''
-        self.expiration = ''
+        self.expiration_str = ''
         self.dates = np.array([])
         self.perp_prices = np.array([])
         self.fut_prices = np.array([])
@@ -220,7 +220,7 @@ class CarryBacktesting:
                        use_cache: bool = True,
                        overwrite_results: bool = False):
         self.coin = coin.upper()
-        self.expiration = expiration
+        self.expiration_str = expiration
 
         results_folder_path = f'{RESULTS_FOLDER}/{expiration}'
         name_path = f'{results_folder_path}/{self.coin}'
@@ -250,6 +250,8 @@ class CarryBacktesting:
         fig = self.get_results_plot_figure()
         fig_path = name_path + '.png'
         fig.savefig(fig_path)
+
+        # todo load from file when reading results. Also create class results
         return self.account.get_net_profit()
 
     def _backtest(self):
@@ -272,7 +274,7 @@ class CarryBacktesting:
         df = util.load_results(self.results_path)
 
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 6), sharex='col')
-        fig.suptitle(f'{self.coin} - {self.expiration}')
+        fig.suptitle(f'{self.coin} - {self.expiration_str}')
 
         dates = df['Date']
         perp_prices = df['PerpPrice']
@@ -403,6 +405,11 @@ def main():
     results = list()
 
     for coin in coins:
+        fut = f'{coin}-{expiration}'
+        expirations = util.get_cached_expirations()
+        if fut in expirations and expirations[fut] == -1:
+            continue
+
         backtester = CarryBacktesting()
 
         try:
