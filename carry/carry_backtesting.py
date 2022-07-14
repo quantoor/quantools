@@ -407,6 +407,8 @@ def main():
 
     for coin in coins:
         fut = f'{coin}-{expiration}'
+        print(fut)
+
         expirations = util.get_cached_expirations()
         if fut in expirations and expirations[fut] == -1:
             continue

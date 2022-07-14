@@ -1,6 +1,6 @@
 import streamlit as st
 import util
-from carry_backtesting import CarryBacktesting
+from carry.carry_backtesting import CarryBacktesting
 import datetime as dt
 
 
