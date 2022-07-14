@@ -5,203 +5,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import datetime as dt
-from trading import Position
-
-TRADE_AMOUNT = 100000  # usd
-CLOSE_THRESHOLD = 0.1  # %
-INIT_OPEN_THRESHOLD = 1.  # %
-CACHE_FOLDER = './cache'
-RESULTS_FOLDER = './results'
-
-
-class CarryMarketData:
-    def __init__(self, coin: str, expiration: str, resolution: int):
-        self.coin = coin
-        self.expiration = expiration
-        self.resolution = resolution
-
-        self.perp_name = f'{self.coin}-PERP'
-        self.fut_name = f'{self.coin}-{self.expiration}'
-
-        self.timestamps = np.array([])
-        self.fut_prices = np.array([])
-        self.perp_prices = np.array([])
-        self.funding_rates = np.array([])
-
-        self.file_path = f'{CACHE_FOLDER}/{coin}_{expiration}_{str(resolution)}.csv'
-
-    def download(self):
-        expiry_ts = util.get_future_expiration_ts(self.fut_name)
-        if expiry_ts == -1:
-            raise Exception(f'Future {self.fut_name} is not found, skip')
-
-        # get future prices
-        self.timestamps, self.fut_prices = util.get_historical_prices(self.fut_name, self.resolution, 0, expiry_ts)
-
-        # start timestamp - skip the first 5 hours
-        start_ts = self.timestamps[4]
-        self.timestamps, self.fut_prices = self.timestamps[4:], self.fut_prices[4:]
-
-        # get perpetual prices for the same period of the future
-        timestamps_perp, self.perp_prices = util.get_historical_prices(self.perp_name, self.resolution, start_ts,
-                                                                       expiry_ts)
-
-        rates_ts, self.funding_rates = util.get_historical_funding(self.perp_name, start_ts, expiry_ts)
-
-        assert len(self.timestamps) == len(timestamps_perp)
-        assert len(self.timestamps) == len(rates_ts)
-        assert self.timestamps.all() == timestamps_perp.all()
-        assert self.timestamps.all() == rates_ts.all()
-
-        self.save_to_file()
-
-    def save_to_file(self):
-        df = pd.DataFrame({
-            'Timestamp': self.timestamps,
-            'PerpPrices': self.perp_prices,
-            'FutPrices': self.fut_prices,
-            'FundingRate': self.funding_rates
-        })
-        util.create_folder(CACHE_FOLDER)
-        df.to_csv(self.file_path)
-
-    def read_from_file(self) -> bool:
-        try:
-            df = pd.read_csv(self.file_path)  # , parse_dates=['Timestamp'])  # , index_col='Date')
-        except FileNotFoundError:
-            return False
-        self.timestamps = df['Timestamp']
-        self.perp_prices = df['PerpPrices']
-        self.fut_prices = df['FutPrices']
-        self.funding_rates = df['FundingRate']
-        return True
-
-
-class Account:
-    def __init__(self):
-        self.perp_position = Position()
-        self.fut_position = Position()
-        self.tot_profit = 0.
-
-        self.perp_price = 0.
-        self.fut_price = 0.
-        self.basis = 0.
-        self.date = None
-
-        self.trades_open = {}  # {date: basis}
-        self.trades_close = {}  # {date: basis}
-
-        self.last_open_basis = 0.
-        self.current_open_threshold = INIT_OPEN_THRESHOLD
-
-        self.funding_rate = 0.
-        self.funding_paid = 0.
-        self.cum_funding_paid = 0.
-
-        self.results = list()
-
-    def __str__(self):
-        return f'Total profit: {round(self.tot_profit, 2)}'
-
-    def is_trade_on(self) -> bool:
-        return self.perp_position.size != 0 or self.fut_position.size != 0
-
-    def next(self, date: str, perp_price: float, fut_price: float, funding_rate: float):
-        self.date = date
-        self.perp_price = perp_price
-        self.fut_price = fut_price
-        self.basis = (perp_price - fut_price) / perp_price * 100
-
-        # check if there is a trade to close
-        if self.is_trade_on() and abs(self.basis) < CLOSE_THRESHOLD:
-            self.close_trade()
-
-        elif self.is_trade_on() and abs(self.basis - self.last_open_basis) > 5:
-            self.close_trade()
-            self.last_open_basis = 0
-            self.current_open_threshold = self.basis + 1
-
-        # check if there is a trade to open
-        elif abs(self.basis) >= self.current_open_threshold:
-            self.open_trade()
-            self.current_open_threshold = max(self.current_open_threshold + 1., self.basis)
-            self.last_open_basis = self.basis
-
-        # compute funding
-        self.funding_rate = funding_rate
-        self.funding_paid = funding_rate * self.perp_position.size * self.perp_price
-        self.cum_funding_paid += self.funding_paid
-
-        self.update_results()
-
-    def update_results(self):
-        self.results.append({
-            'Date': self.date,
-            'PerpPrice': self.perp_price,
-            'PerpPosSize': self.perp_position.size,
-            'PerpPosEntryPrice': self.perp_position.entry_price,
-            'PerpPosPnl': self.perp_position.get_pnl(self.perp_price),
-            'FutPrice': self.fut_price,
-            'FutPosSize': self.fut_position.size,
-            'FutPosEntryPrice': self.fut_position.entry_price,
-            'FutPosPnl': self.fut_position.get_pnl(self.fut_price),
-            'Basis': self.basis,
-            'TradeOpen': True if (self.date in self.trades_open) else False,
-            'TradeClose': True if (self.date in self.trades_close) else False,
-            'Pnl': self.get_tot_pnl(self.perp_price, self.fut_price),
-            'Equity': self.get_equity(self.perp_price, self.fut_price),
-            'FundingRate': self.funding_rate,
-            'FundingPaid': self.funding_paid,
-            'CumFundingPaid': self.cum_funding_paid,
-        })
-
-    def open_trade(self):
-        perp_amount = TRADE_AMOUNT / self.perp_price
-        fut_amount = perp_amount
-
-        if self.basis > 0:
-            # sell perp, buy futs
-            self.perp_position.update(self.perp_price, -perp_amount)
-            self.fut_position.update(self.fut_price, fut_amount)
-            print(
-                f'{self.date} open trade, sell {round(perp_amount, 2)} perp @ {self.perp_price}, buy {round(fut_amount, 2)} fut @ {self.fut_price}')
-        else:
-            # buy perp, sell futs
-            self.perp_position.update(self.perp_price, perp_amount)
-            self.fut_position.update(self.fut_price, -fut_amount)
-            print(
-                f'{self.date} open trade, buy {round(perp_amount, 2)} perp @ {self.perp_price}, sell {round(fut_amount, 2)} fut @ {self.fut_price}')
-
-        self.trades_open[self.date] = self.basis
-
-    def close_trade(self):
-        profit = self.perp_position.get_pnl(self.perp_price) + self.fut_position.get_pnl(self.fut_price)
-        self.tot_profit += profit
-        self.perp_position.reset()
-        self.fut_position.reset()
-        self.current_open_threshold = INIT_OPEN_THRESHOLD
-
-        self.trades_close[self.date] = self.basis
-        logger.info(f'Profit: {round(profit, 2)}')
-
-    def get_tot_pnl(self, perp_price: float, fut_price: float) -> float:
-        return self.perp_position.get_pnl(perp_price) + self.fut_position.get_pnl(fut_price)
-
-    def get_equity(self, perp_price: float, fut_price: float) -> float:
-        return self.tot_profit + self.get_tot_pnl(perp_price, fut_price) - self.cum_funding_paid
-
-    def get_net_profit(self):
-        return self.tot_profit - self.cum_funding_paid
-
-    def get_results(self) -> pd.DataFrame:
-        df = pd.DataFrame(self.results)
-        # df['Timestamp'] = [dt.datetime.fromtimestamp(ts) for ts in df['Date']]  # add a column with a date format
-        # df.set_index('Timestamp', inplace=True)
-        return df
-
-    def save_results(self, path: str):
-        results = self.get_results()
-        results.to_csv(path)
+import config
+from market_data import CarryMarketData
+from account import Account
 
 
 class CarryBacktesting:
@@ -216,13 +22,12 @@ class CarryBacktesting:
 
         self.results_path = ''
 
-    def backtest_carry(self, coin: str, expiration: str, resolution: int,
-                       use_cache: bool = True,
+    def backtest_carry(self, coin: str, expiration: str, resolution: int, use_cache: bool = True,
                        overwrite_results: bool = False):
         self.coin = coin.upper()
         self.expiration_str = expiration
 
-        results_folder_path = f'{RESULTS_FOLDER}/{expiration}'
+        results_folder_path = f'{config.RESULTS_FOLDER}/{expiration}'
         name_path = f'{results_folder_path}/{self.coin}'
         if not util.folder_exists(results_folder_path):
             util.create_folder(results_folder_path)
@@ -417,8 +222,8 @@ def main():
 
         try:
             profit = backtester.backtest_carry(coin, expiration, 3600,
-                                               use_cache=True,
-                                               overwrite_results=False)
+                                               use_cache=False,
+                                               overwrite_results=True)
         except Exception as e:
             logger.warning(e)
             continue
@@ -429,7 +234,7 @@ def main():
         })
 
     df = pd.DataFrame(results)
-    df.to_csv(f'{RESULTS_FOLDER}/{expiration}.csv')
+    df.to_csv(f'{config.RESULTS_FOLDER}/{expiration}.csv')
     # plt.show()
     logger.info('done')
 
