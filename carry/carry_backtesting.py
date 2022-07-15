@@ -13,16 +13,15 @@ class CarryBacktesting:
         self.coin = ''
         self.expiration_str = ''
         self.dates = np.array([])
-        self.perp_prices = np.array([])
-        self.fut_prices = np.array([])
-        self.funding_rates = np.array([])
-        self.account = Account(self.coin, self.expiration_str)
+        self.account = None
+        self.market_data = None
         self.results_path = ''
 
     def backtest_carry(self, coin: str, expiration: str, resolution: int, use_cache: bool = True,
                        overwrite_results: bool = False):
         self.coin = coin.upper()
         self.expiration_str = expiration
+        self.account = Account(self.coin, self.expiration_str)
 
         results_folder_path = f'{config.RESULTS_FOLDER}/{expiration}'
         name_path = f'{results_folder_path}/{self.coin}'
@@ -38,15 +37,7 @@ class CarryBacktesting:
             else:
                 market_data.download()
 
-            timestamps = market_data.timestamps
-            self.perp_prices = market_data.perp_prices
-            self.fut_prices = market_data.fut_prices
-            self.funding_rates = market_data.funding_rates
-
-            # dates = mdates.num2date(mdates.datestr2num(times))
-            # dates = [dt.datetime.fromtimestamp(ts).strftime("%Y-%m-%d_%H:%M:%S") for ts in perp_ts]
-            dates = [dt.datetime.fromtimestamp(ts).isoformat() for ts in timestamps]
-            self.dates = np.array(dates)
+            self.market_data = market_data
             self._backtest()
 
             fig = self.account.results.get_figure(self.results_path)
@@ -58,10 +49,16 @@ class CarryBacktesting:
         return self.account.results.get_final_equity()
 
     def _backtest(self):
+        timestamps = self.market_data.timestamps
+        # dates = mdates.num2date(mdates.datestr2num(times))
+        # dates = [dt.datetime.fromtimestamp(ts).strftime("%Y-%m-%d_%H:%M:%S") for ts in perp_ts]
+        dates = [dt.datetime.fromtimestamp(ts).isoformat() for ts in timestamps]
+        self.dates = np.array(dates)
+
         for i, date in enumerate(self.dates):
-            perp_price = self.perp_prices[i]
-            fut_price = self.fut_prices[i]
-            funding_rate = self.funding_rates[i]
+            perp_price = self.market_data.perp_prices[i]
+            fut_price = self.market_data.fut_prices[i]
+            funding_rate = self.market_data.funding_rates[i]
             self.account.next(date, perp_price, fut_price, funding_rate)
 
         if self.account.is_trade_on():
@@ -74,35 +71,35 @@ class CarryBacktesting:
 
 def main():
     coins = util.get_all_futures_coins()
-    expiration = '0624'
+    all_expirations = util.get_all_expirations()
 
-    results = list()
+    for expiration in all_expirations:
+        results = list()
 
-    for coin in coins:
-        fut = f'{coin}-{expiration}'
+        for coin in coins:
+            fut = f'{coin}-{expiration}'
 
-        expirations = util.get_cached_expirations()
-        if fut in expirations and expirations[fut] == -1:
-            continue
+            expirations = util.get_cached_expirations(expiration)
+            if fut in expirations and expirations[fut] == -1:
+                continue
 
-        logger.info(fut)
+            logger.info(fut)
+            backtester = CarryBacktesting()
 
-        backtester = CarryBacktesting()
+            try:
+                profit = backtester.backtest_carry(coin, expiration, 3600, use_cache=True, overwrite_results=False)
+            except Exception as e:
+                logger.warning(e)
+                continue
 
-        try:
-            profit = backtester.backtest_carry(coin, expiration, 3600, use_cache=True, overwrite_results=False)
-        except Exception as e:
-            logger.warning(e)
-            continue
+            results.append({
+                'Coin': coin,
+                'Profit': profit,
+            })
 
-        results.append({
-            'Coin': coin,
-            'Profit': profit,
-        })
+        df = pd.DataFrame(results)
+        df.to_csv(f'{config.RESULTS_FOLDER}/{expiration}.csv')
 
-    df = pd.DataFrame(results)
-    df.to_csv(f'{config.RESULTS_FOLDER}/{expiration}.csv')
-    # plt.show()
     logger.info('done')
 
 

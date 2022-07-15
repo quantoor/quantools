@@ -1,7 +1,9 @@
 import datetime as dt
 import logging
 from pathlib import Path
-import pandas as pd
+from typing import List, Dict
+
+import util
 from FtxClientRest import FtxClient
 import matplotlib.pyplot as plt
 import numpy as np
@@ -45,7 +47,7 @@ def create_folder(path: str):
         p.mkdir(parents=True, exist_ok=True)
 
 
-client = FtxClient()
+client = FtxClient()  # todo refactor this
 
 
 def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_ts: int, plot: bool = False):
@@ -98,7 +100,7 @@ def get_historical_funding(instrument: str, start_ts: int, end_ts: int, plot: bo
     return np.array(timestamps), np.array(rates)
 
 
-def get_all_futures_coins():
+def get_all_futures_coins() -> List[str]:
     markets = client.get_markets()
     coins = set()
     for i in markets:
@@ -107,7 +109,7 @@ def get_all_futures_coins():
     return sorted(list(coins))
 
 
-def get_expired_futures():
+def get_expired_futures() -> Dict:
     coins = get_all_futures_coins()
 
     expirations = client.get_expired_futures()
@@ -130,12 +132,14 @@ def get_expired_futures():
     return expirations_dict
 
 
-expirations_file = 'cache/_expirations.csv'
+def get_all_expirations() -> List[str]:
+    return list(get_expired_futures().keys())
 
 
-def get_cached_expirations():
-    if file_exists(expirations_file):
-        with open(expirations_file, 'r') as f:
+def get_cached_expirations(expiration: str) -> Dict:
+    path = f'./cache/{expiration}/_expirations.csv'  # todo refactor this
+    if file_exists(path):
+        with open(path, 'r') as f:
             return json.load(f)
     else:
         return {}
@@ -144,28 +148,31 @@ def get_cached_expirations():
 def get_future_expiration_ts(future: str) -> int:
     """Returns 0 if the future does not exist."""
 
+    expiration_str = future.split('-')[1]
+
     # read from cache
-    expirations = get_cached_expirations()
+    expirations = get_cached_expirations(expiration_str)
     if future in expirations:
         return expirations[future]
 
     try:
         res = client.get_future(future)
-        expiration = iso_date_to_timestamp(res['expiry'])
+        expiration_ts = iso_date_to_timestamp(res['expiry'])
     except:
-        expiration = -1
+        expiration_ts = -1
 
-    expirations[future] = expiration
+    expirations[future] = expiration_ts
 
     # cache value
-    with open(expirations_file, 'w') as f:
+    util.create_folder(f'./cache/{expiration_str}')
+    with open(f'./cache/{expiration_str}/_expirations.csv', 'w') as f:  # todo refactor this
         f.write(json.dumps(expirations))
 
-    return expiration
+    return expiration_ts
 
 
 if __name__ == '__main__':
-    print(get_expired_futures())
+    print(get_all_expirations())
     # start_ts = 0
     # end_ts = date_to_timestamp(2022, 6, 24, 0)
     #
