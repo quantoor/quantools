@@ -1,6 +1,7 @@
 from trading import Position
 from util import logger
 import pandas as pd
+from results import CarryResults
 
 TRADE_AMOUNT = 100000  # usd
 CLOSE_THRESHOLD = 0.1  # %
@@ -8,7 +9,7 @@ INIT_OPEN_THRESHOLD = 1.  # %
 
 
 class Account:
-    def __init__(self):
+    def __init__(self, coin: str, expiration: str):
         self.perp_position = Position()
         self.fut_position = Position()
         self.tot_profit = 0.
@@ -28,7 +29,7 @@ class Account:
         self.funding_paid = 0.
         self.cum_funding_paid = 0.
 
-        self.results = list()
+        self.results = CarryResults(coin, expiration)
 
     def __str__(self):
         return f'Total profit: {round(self.tot_profit, 2)}'
@@ -65,7 +66,7 @@ class Account:
         self.update_results()
 
     def update_results(self):
-        self.results.append({
+        self.results.append_results_list({
             'Date': self.date,
             'PerpPrice': self.perp_price,
             'PerpPosSize': self.perp_position.size,
@@ -93,14 +94,14 @@ class Account:
             # sell perp, buy futs
             self.perp_position.update(self.perp_price, -perp_amount)
             self.fut_position.update(self.fut_price, fut_amount)
-            print(
-                f'{self.date} open trade, sell {round(perp_amount, 2)} perp @ {self.perp_price}, buy {round(fut_amount, 2)} fut @ {self.fut_price}')
+            # print(
+            #     f'{self.date} open trade, sell {round(perp_amount, 2)} perp @ {self.perp_price}, buy {round(fut_amount, 2)} fut @ {self.fut_price}')
         else:
             # buy perp, sell futs
             self.perp_position.update(self.perp_price, perp_amount)
             self.fut_position.update(self.fut_price, -fut_amount)
-            print(
-                f'{self.date} open trade, buy {round(perp_amount, 2)} perp @ {self.perp_price}, sell {round(fut_amount, 2)} fut @ {self.fut_price}')
+            # print(
+            #     f'{self.date} open trade, buy {round(perp_amount, 2)} perp @ {self.perp_price}, sell {round(fut_amount, 2)} fut @ {self.fut_price}')
 
         self.trades_open[self.date] = self.basis
 
@@ -112,7 +113,7 @@ class Account:
         self.current_open_threshold = INIT_OPEN_THRESHOLD
 
         self.trades_close[self.date] = self.basis
-        logger.info(f'Profit: {round(profit, 2)}')
+        logger.debug(f'Profit: {round(profit, 2)}')
 
     def get_tot_pnl(self, perp_price: float, fut_price: float) -> float:
         return self.perp_position.get_pnl(perp_price) + self.fut_position.get_pnl(fut_price)
@@ -124,11 +125,7 @@ class Account:
         return self.tot_profit - self.cum_funding_paid
 
     def get_results(self) -> pd.DataFrame:
-        df = pd.DataFrame(self.results)
-        # df['Timestamp'] = [dt.datetime.fromtimestamp(ts) for ts in df['Date']]  # add a column with a date format
-        # df.set_index('Timestamp', inplace=True)
-        return df
+        return self.results.get_df()
 
     def save_results(self, path: str):
-        results = self.get_results()
-        results.to_csv(path)
+        self.results.write_to_file(path)

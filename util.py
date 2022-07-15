@@ -44,14 +44,7 @@ def create_folder(path: str):
     p.mkdir(parents=True, exist_ok=True)
 
 
-def load_results(file_path: str) -> pd.DataFrame:
-    df = pd.read_csv(file_path, parse_dates=['Date'])  # , index_col='Date')
-    return df
-
-
-api_key = ''
-api_secret = ''
-client = FtxClient(api_key, api_secret)
+client = FtxClient()
 
 
 def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_ts: int, plot: bool = False):
