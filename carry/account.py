@@ -121,7 +121,7 @@ class Account:
     def get_equity(self, perp_price: float, fut_price: float) -> float:
         return self.tot_profit + self.get_tot_pnl(perp_price, fut_price) - self.cum_funding_paid
 
-    def get_net_profit(self):
+    def get_net_profit(self) -> float:
         return self.tot_profit - self.cum_funding_paid
 
     def get_results(self) -> pd.DataFrame:

@@ -40,8 +40,9 @@ def folder_exists(path: str) -> bool:
 
 
 def create_folder(path: str):
-    p = Path(path)
-    p.mkdir(parents=True, exist_ok=True)
+    if not folder_exists(path):
+        p = Path(path)
+        p.mkdir(parents=True, exist_ok=True)
 
 
 client = FtxClient()

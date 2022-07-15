@@ -21,6 +21,11 @@ class CarryResults:
             # df.set_index('Timestamp', inplace=True)
         return self.df
 
+    def get_final_equity(self) -> float:
+        if len(self.results_list) == 0:
+            raise Exception('Results list is empty')
+        return self.results_list[-1]['Equity']
+
     def read_from_file(self, path: str):
         self.df = pd.read_csv(path, parse_dates=['Date'])  # , index_col='Date')
         self.results_list = self.df.to_dict('records')

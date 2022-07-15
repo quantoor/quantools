@@ -26,8 +26,7 @@ class CarryBacktesting:
 
         results_folder_path = f'{config.RESULTS_FOLDER}/{expiration}'
         name_path = f'{results_folder_path}/{self.coin}'
-        if not util.folder_exists(results_folder_path):
-            util.create_folder(results_folder_path)
+        util.create_folder(results_folder_path)
         self.results_path = name_path + '.csv'
 
         if not overwrite_results and util.file_exists(self.results_path):
@@ -50,12 +49,13 @@ class CarryBacktesting:
             self.dates = np.array(dates)
             self._backtest()
 
-        fig = self.account.results.get_figure(self.results_path)
-        fig_path = name_path + '.png'
-        fig.savefig(fig_path)
+            fig = self.account.results.get_figure(self.results_path)
+            fig_path = name_path + '.png'
+            fig.savefig(fig_path)
 
-        # todo load from file when reading results
-        return self.account.get_net_profit()
+        # todo refactor this
+        self.account.results.read_from_file(self.results_path)
+        return self.account.results.get_final_equity()
 
     def _backtest(self):
         for i, date in enumerate(self.dates):
@@ -90,7 +90,7 @@ def main():
         backtester = CarryBacktesting()
 
         try:
-            profit = backtester.backtest_carry(coin, expiration, 3600, use_cache=True, overwrite_results=True)
+            profit = backtester.backtest_carry(coin, expiration, 3600, use_cache=True, overwrite_results=False)
         except Exception as e:
             logger.warning(e)
             continue

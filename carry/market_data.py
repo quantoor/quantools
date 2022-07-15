@@ -18,7 +18,9 @@ class CarryMarketData:
         self.perp_prices = np.array([])
         self.funding_rates = np.array([])
 
-        self.file_path = f'{config.CACHE_FOLDER}/{coin}_{expiration}_{str(resolution)}.csv'
+        cache_folder = f'{config.CACHE_FOLDER}/{expiration}'
+        util.create_folder(cache_folder)
+        self.file_path = f'{cache_folder}/{coin}_{expiration}_{str(resolution)}.csv'
 
     def download(self):
         expiry_ts = util.get_future_expiration_ts(self.fut_name)
@@ -43,16 +45,15 @@ class CarryMarketData:
         assert self.timestamps.all() == timestamps_perp.all()
         assert self.timestamps.all() == rates_ts.all()
 
-        self.save_to_file()
+        self.save_cache()
 
-    def save_to_file(self):
+    def save_cache(self):
         df = pd.DataFrame({
             'Timestamp': self.timestamps,
             'PerpPrices': self.perp_prices,
             'FutPrices': self.fut_prices,
             'FundingRate': self.funding_rates
         })
-        util.create_folder(config.CACHE_FOLDER)
         df.to_csv(self.file_path)
 
     def read_from_file(self) -> bool:
