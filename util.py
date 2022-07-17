@@ -3,7 +3,6 @@ import logging
 from pathlib import Path
 from typing import List, Dict
 
-import util
 from FtxClientRest import FtxClient
 import matplotlib.pyplot as plt
 import numpy as np
@@ -132,8 +131,21 @@ def get_expired_futures() -> Dict:
     return expirations_dict
 
 
-def get_all_expirations() -> List[str]:
-    return list(get_expired_futures().keys())
+def get_expiration_date_from_str(expiration: str):
+    if len(expiration) == 4:
+        month = expiration[:2]
+        day = expiration[2:]
+        return dt.datetime(dt.datetime.now().year, int(month), int(day))
+    else:
+        year = expiration[:4]
+        month = expiration[4:6]
+        day = expiration[6:]
+        return dt.datetime(int(year), int(month), int(day))
+
+
+def get_all_expirations(start_year: int = 2020) -> List[str]:
+    expirations = list(get_expired_futures().keys())
+    return [i for i in expirations if get_expiration_date_from_str(i).year >= start_year]
 
 
 def get_cached_expirations(expiration: str) -> Dict:
@@ -164,7 +176,7 @@ def get_future_expiration_ts(future: str) -> int:
     expirations[future] = expiration_ts
 
     # cache value
-    util.create_folder(f'./cache/{expiration_str}')
+    create_folder(f'./cache/{expiration_str}')
     with open(f'./cache/{expiration_str}/_expirations.csv', 'w') as f:  # todo refactor this
         f.write(json.dumps(expirations))
 

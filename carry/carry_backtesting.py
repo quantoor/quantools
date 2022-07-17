@@ -98,7 +98,7 @@ def main():
             })
 
         df = pd.DataFrame(results)
-        df.to_csv(f'{config.RESULTS_FOLDER}/{expiration}.csv')
+        df.to_csv(f'{config.RESULTS_FOLDER}/{expiration}.csv', index_label=False)
 
     logger.info('done')
 

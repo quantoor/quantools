@@ -54,7 +54,7 @@ class CarryMarketData:
             'FutPrices': self.fut_prices,
             'FundingRate': self.funding_rates
         })
-        df.to_csv(self.file_path)
+        df.to_csv(self.file_path, index_label=False)
 
     def read_from_file(self) -> bool:
         try:

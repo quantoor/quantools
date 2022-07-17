@@ -29,12 +29,12 @@ class CarryResults:
     def read_from_file(self, path: str):
         self.df = pd.read_csv(path, parse_dates=['Date'])  # , index_col='Date')
         self.results_list = self.df.to_dict('records')
-        for i in self.results_list:
+        for i in self.results_list:  # todo remove this
             i.pop('Unnamed: 0', None)
 
     def write_to_file(self, path: str):
         self.df = self.get_df()
-        self.df.to_csv(path)
+        self.df.to_csv(path, index_label=False)
 
     def get_figure(self, path) -> matplotlib.figure:
         df = pd.read_csv(path, parse_dates=['Date'])
