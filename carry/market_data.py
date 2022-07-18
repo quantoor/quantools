@@ -1,5 +1,5 @@
 import numpy as np
-import util
+from common import util
 import pandas as pd
 import config
 

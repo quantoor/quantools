@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import util
+from common import util
 import config
 
 font = {  # 'family': 'serif',

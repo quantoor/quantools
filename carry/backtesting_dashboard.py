@@ -1,33 +1,27 @@
+import os
+import sys
+import inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, parentdir)
 import streamlit as st
-import util
-from carry.backtesting import CarryBacktesting
-import datetime as dt
+from common import util
+from backtesting import CarryBacktesting
 
 
 def carry_backtesting():
     # instruments
     col1, col2 = st.columns(2)
     with col1:
-        coin = st.text_input('Coin', value='AAVE')
+        coin = st.selectbox('Coin', util.get_all_futures_coins())
 
     with col2:
-        fut_expiration = st.selectbox('Future expiration', ['0624'])
-
-    # dates
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("Start date", dt.datetime(2022, 3, 20, 0))
-
-    with col2:
-        end_date = st.date_input("End date", dt.datetime(2022, 6, 24, 0))
-
-    start_ts = util.date_to_timestamp(start_date.year, start_date.month, start_date.day, 0)
-    end_ts = util.date_to_timestamp(end_date.year, end_date.month, end_date.day, 0)
+        fut_expiration = st.selectbox('Future expiration', util.get_all_expirations())
 
     # backtesting
     backtester = CarryBacktesting()
-    fig = backtester.backtest_carry(coin, fut_expiration, 3600, start_ts, end_ts,
-                                    overwrite_results=False)
+    backtester.backtest_carry(coin, fut_expiration, 3600, use_cache=True, overwrite_results=False)
+    fig = backtester.account.results.get_figure(backtester.results_path)  # todo refactor this
     st.pyplot(fig)
 
 

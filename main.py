@@ -1,5 +1,5 @@
-import util
-from FtxClientRest import FtxClient
+from common import util
+from common.FtxClientRest import FtxClient
 from dateutil import parser
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates

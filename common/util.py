@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import List, Dict
 
-from FtxClientRest import FtxClient
+from common.FtxClientRest import FtxClient
 import matplotlib.pyplot as plt
 import numpy as np
 import json

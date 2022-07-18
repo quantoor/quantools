@@ -1,6 +1,6 @@
 import pandas as pd
-import util
-from util import logger
+from common import util
+from common.util import logger
 import numpy as np
 import datetime as dt
 import config

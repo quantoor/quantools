@@ -36,7 +36,7 @@ class CarryResults:
         self.df = self.get_df()
         self.df.to_csv(path, index_label=False)
 
-    def get_figure(self, path) -> matplotlib.figure:
+    def get_figure(self, path: str) -> matplotlib.figure:
         df = pd.read_csv(path, parse_dates=['Date'])
 
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 6), sharex='col')
