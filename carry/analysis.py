@@ -12,7 +12,7 @@ font = {  # 'family': 'serif',
 
 all_expirations = util.get_all_expirations()
 
-results_dict = {}  # {coin : [profits]}
+results_dict = dict()  # {coin : [profits]}
 
 for expiration in all_expirations:
     path = f'{config.RESULTS_FOLDER}/{expiration}.csv'
@@ -20,7 +20,6 @@ for expiration in all_expirations:
 
     d = df.to_dict('records')
     for i in d:
-        i.pop('Unnamed: 0', None)  # todo remove this
         if i['Coin'] in results_dict:
             results_dict[i['Coin']].append(i['Profit'])
         else:
@@ -36,14 +35,13 @@ for expiration in all_expirations:
     # ax.set_ylabel('Frequency', fontdict=font)
     # ax.set_xlabel('Profit', fontdict=font)
 
-profits = []
-for k, v in results_dict.items():
-    profits.append(v)
+coin_to_mean_of_profits = {coin: np.mean(profits) for coin, profits in results_dict.items()}
+coin_sorted_by_mean_of_profit = dict(sorted(coin_to_mean_of_profits.items(), key=lambda item: item[1]))
+data = {coin: results_dict[coin] for coin in coin_sorted_by_mean_of_profit.keys()}
 
-# Multiple box plots on one Axes
 fig, ax = plt.subplots(figsize=(12, 6))
-ax.set_xticklabels(results_dict.keys(), rotation=90, fontsize=8)
-ax.boxplot(profits)
+ax.set_xticklabels(data.keys(), rotation=90, fontsize=8)
+ax.boxplot(list(data.values()))
 # ax.set_yscale('log')
 
 plt.show()
