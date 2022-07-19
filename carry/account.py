@@ -10,10 +10,12 @@ INIT_OPEN_THRESHOLD = 1.  # %
 
 class Account:
     def __init__(self, coin: str, expiration: str):
+        self.spot_position = Position()
         self.perp_position = Position()
         self.fut_position = Position()
         self.tot_profit = 0.
 
+        self.spot_price = 0.
         self.perp_price = 0.
         self.fut_price = 0.
         self.basis = 0.
@@ -37,11 +39,12 @@ class Account:
     def is_trade_on(self) -> bool:
         return self.perp_position.size != 0 or self.fut_position.size != 0
 
-    def next(self, date: str, perp_price: float, fut_price: float, funding_rate: float):
+    def next(self, date: str, spot_price: float, perp_price: float, fut_price: float, funding_rate: float):
         self.date = date
+        self.spot_price = spot_price
         self.perp_price = perp_price
         self.fut_price = fut_price
-        self.basis = (perp_price - fut_price) / perp_price * 100
+        self.basis = (spot_price - fut_price) / spot_price * 100
 
         # check if there is a trade to close
         if self.is_trade_on() and abs(self.basis) < CLOSE_THRESHOLD:
@@ -68,6 +71,9 @@ class Account:
     def update_results(self):
         self.results.append_results_list({
             'Date': self.date,
+            'SpotPrice': self.spot_price,
+            'SpotPosSize': self.spot_position.size,
+            'SpotPosEntryPrice': self.spot_position.entry_price,
             'PerpPrice': self.perp_price,
             'PerpPosSize': self.perp_position.size,
             'PerpPosEntryPrice': self.perp_position.entry_price,
@@ -87,21 +93,19 @@ class Account:
         })
 
     def open_trade(self):
+        spot_amount = TRADE_AMOUNT / self.spot_price
         perp_amount = TRADE_AMOUNT / self.perp_price
-        fut_amount = perp_amount
 
         if self.basis > 0:
-            # sell perp, buy futs
+            # sell perp, buy futures
             self.perp_position.update(self.perp_price, -perp_amount)
+            fut_amount = perp_amount
             self.fut_position.update(self.fut_price, fut_amount)
-            # print(
-            #     f'{self.date} open trade, sell {round(perp_amount, 2)} perp @ {self.perp_price}, buy {round(fut_amount, 2)} fut @ {self.fut_price}')
         else:
-            # buy perp, sell futs
-            self.perp_position.update(self.perp_price, perp_amount)
+            # buy spot, sell futures
+            self.spot_position.update(self.spot_price, spot_amount)
+            fut_amount = spot_amount
             self.fut_position.update(self.fut_price, -fut_amount)
-            # print(
-            #     f'{self.date} open trade, buy {round(perp_amount, 2)} perp @ {self.perp_price}, sell {round(fut_amount, 2)} fut @ {self.fut_price}')
 
         self.trades_open[self.date] = self.basis
 

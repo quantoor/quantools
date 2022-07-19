@@ -56,10 +56,11 @@ class CarryBacktesting:
         self.dates = np.array(dates)
 
         for i, date in enumerate(self.dates):
+            spot_price = self.market_data.spot_prices[i]
             perp_price = self.market_data.perp_prices[i]
             fut_price = self.market_data.fut_prices[i]
             funding_rate = self.market_data.funding_rates[i]
-            self.account.next(date, perp_price, fut_price, funding_rate)
+            self.account.next(date, spot_price, perp_price, fut_price, funding_rate)
 
         if self.account.is_trade_on():
             self.account.close_trade()
