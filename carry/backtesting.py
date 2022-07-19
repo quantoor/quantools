@@ -77,7 +77,7 @@ def main():
         results = list()
 
         for coin in coins:
-            fut = f'{coin}-{expiration}'
+            fut = util.get_future_symbol(coin, expiration)
 
             expirations = util.get_cached_expirations(expiration)
             if fut in expirations and expirations[fut] == -1:
@@ -87,7 +87,7 @@ def main():
             backtester = CarryBacktesting()
 
             try:
-                profit = backtester.backtest_carry(coin, expiration, 3600, use_cache=True, overwrite_results=False)
+                profit = backtester.backtest_carry(coin, expiration, 3600, use_cache=False, overwrite_results=True)
             except Exception as e:
                 logger.warning(e)
                 continue
@@ -98,7 +98,7 @@ def main():
             })
 
         df = pd.DataFrame(results)
-        df.to_csv(f'{config.RESULTS_FOLDER}/{expiration}.csv', index_label=False)
+        df.to_csv(f'{config.RESULTS_FOLDER}/{expiration}.csv', index=False)
 
     logger.info('done')
 

@@ -49,7 +49,19 @@ def create_folder(path: str):
 client = FtxClient()  # todo refactor this
 
 
-def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_ts: int, plot: bool = False):
+def get_spot_symbol(coin: str):
+    return f'{coin}/USD'
+
+
+def get_perp_symbol(coin: str):
+    return f'{coin}-PERP'
+
+
+def get_future_symbol(coin: str, expiration: str):
+    return f'{coin}-{expiration}'
+
+
+def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_ts: int):
     print(f'downloading historical prices of {instrument}...', end='')
 
     timestamps = []
@@ -66,16 +78,11 @@ def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_t
             prices.insert(0, i['open'])
         print('...', end='')
 
-    if plot:
-        plt.figure()
-        plt.plot(timestamps, prices)
-        plt.show()
-
     print('done')
     return np.array(timestamps), np.array(prices)
 
 
-def get_historical_funding(instrument: str, start_ts: int, end_ts: int, plot: bool = False):
+def get_historical_funding(instrument: str, start_ts: int, end_ts: int):
     print(f'downloading historical funding rate of {instrument}...', end='')
 
     timestamps = []
@@ -89,11 +96,6 @@ def get_historical_funding(instrument: str, start_ts: int, end_ts: int, plot: bo
             timestamps.insert(0, iso_date_to_timestamp(i['time']))
             rates.insert(0, i['rate'])
         print('...', end='')
-
-    if plot:
-        plt.figure()
-        plt.plot(timestamps, rates)
-        plt.show()
 
     print('done')
     return np.array(timestamps), np.array(rates)

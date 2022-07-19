@@ -34,7 +34,7 @@ class CarryResults:
 
     def write_to_file(self, path: str):
         self.df = self.get_df()
-        self.df.to_csv(path, index_label=False)
+        self.df.to_csv(path, index=False)
 
     def get_figure(self, path: str) -> matplotlib.figure:
         df = pd.read_csv(path, parse_dates=['Date'])
