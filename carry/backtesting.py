@@ -73,22 +73,24 @@ class CarryBacktesting:
 def main():
     coins = util.get_all_futures_coins()
     all_expirations = util.get_all_expirations()
+    all_expired_futures = util.get_expired_futures()
 
+    # todo multithread
     for expiration in all_expirations:
         results = list()
 
         for coin in coins:
             fut = util.get_future_symbol(coin, expiration)
 
-            expirations = util.get_cached_expirations(expiration)
-            if fut in expirations and expirations[fut] == -1:
+            future_exists = util.future_exists(fut, all_expired_futures)
+            if not future_exists:
                 continue
 
             logger.info(fut)
             backtester = CarryBacktesting()
 
             try:
-                profit = backtester.backtest_carry(coin, expiration, 3600, use_cache=False, overwrite_results=True)
+                profit = backtester.backtest_carry(coin, expiration, 3600, use_cache=True, overwrite_results=False)
             except Exception as e:
                 logger.warning(e)
                 continue

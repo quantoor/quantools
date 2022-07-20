@@ -61,6 +61,12 @@ def get_future_symbol(coin: str, expiration: str):
     return f'{coin}-{expiration}'
 
 
+def get_coin_and_expiration_from_future_symbol(future: str):
+    tmp = future.split('-')
+    assert len(tmp) == 2
+    return tmp[0], tmp[1]
+
+
 def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_ts: int):
     print(f'downloading historical prices of {instrument}...', end='')
 
@@ -145,44 +151,18 @@ def get_expiration_date_from_str(expiration: str):
         return dt.datetime(int(year), int(month), int(day))
 
 
+def get_expiration_ts_from_str(expiration: str) -> int:
+    return int(get_expiration_date_from_str(expiration).timestamp())
+
+
 def get_all_expirations(start_year: int = 2020) -> List[str]:
     expirations = list(get_expired_futures().keys())
     return [i for i in expirations if get_expiration_date_from_str(i).year >= start_year]
 
 
-def get_cached_expirations(expiration: str) -> Dict:
-    path = f'./cache/{expiration}/_expirations.csv'  # todo refactor this
-    if file_exists(path):
-        with open(path, 'r') as f:
-            return json.load(f)
-    else:
-        return {}
-
-
-def get_future_expiration_ts(future: str) -> int:
-    """Returns 0 if the future does not exist."""
-
-    expiration_str = future.split('-')[1]
-
-    # read from cache
-    expirations = get_cached_expirations(expiration_str)
-    if future in expirations:
-        return expirations[future]
-
-    try:
-        res = client.get_future(future)
-        expiration_ts = iso_date_to_timestamp(res['expiry'])
-    except:
-        expiration_ts = -1
-
-    expirations[future] = expiration_ts
-
-    # cache value
-    create_folder(f'./cache/{expiration_str}')
-    with open(f'./cache/{expiration_str}/_expirations.csv', 'w') as f:  # todo refactor this
-        f.write(json.dumps(expirations))
-
-    return expiration_ts
+def future_exists(future: str, expired_futures: Dict) -> bool:
+    coin, expiration = get_coin_and_expiration_from_future_symbol(future)
+    return expiration in expired_futures.keys() and coin in expired_futures[expiration]
 
 
 if __name__ == '__main__':

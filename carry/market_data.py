@@ -25,9 +25,7 @@ class CarryMarketData:
         self.file_path = f'{cache_folder}/{coin}_{expiration}_{str(resolution)}.csv'
 
     def download(self):
-        expiry_ts = util.get_future_expiration_ts(self.fut_symbol)
-        if expiry_ts == -1:
-            raise Exception(f'Future {self.fut_symbol} is not found, skip')
+        expiry_ts = util.get_expiration_ts_from_str(self.expiration)
 
         # get future prices
         self.timestamps, self.fut_prices = util.get_historical_prices(self.fut_symbol, self.resolution, 0, expiry_ts)
