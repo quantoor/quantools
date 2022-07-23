@@ -17,8 +17,42 @@ class CarryBacktesting:
         self.market_data = None
         self.results_path = ''
 
-    def backtest_carry(self, coin: str, expiration: str, resolution: int, use_cache: bool = True,
-                       overwrite_results: bool = False):
+    def backtest_all(self, resolution: int, use_cache: bool = True, overwrite_results: bool = False):
+        coins = util.get_all_futures_coins()
+        all_expirations = util.get_all_expirations()
+        all_expired_futures = util.get_expired_futures()
+        # spot_markets = util.get_all_spot_markets()
+
+        # todo multithread
+        for expiration in all_expirations:
+            results = list()
+
+            for coin in coins:
+                fut = util.get_future_symbol(coin, expiration)
+
+                future_exists = util.future_exists(fut, all_expired_futures)
+                if not future_exists:
+                    continue
+
+                logger.info(fut)
+
+                try:
+                    profit = self.backtest_single(coin, expiration, resolution, use_cache=use_cache,
+                                                  overwrite_results=overwrite_results)
+                except Exception as e:
+                    logger.warning(e)
+                    continue
+
+                results.append({
+                    'Coin': coin,
+                    'Profit': profit,
+                })
+
+            df = pd.DataFrame(results)
+            df.to_csv(f'{config.RESULTS_FOLDER}/{expiration}.csv', index=False)
+
+    def backtest_single(self, coin: str, expiration: str, resolution: int, use_cache: bool = True,
+                        overwrite_results: bool = False):
         self.coin = coin.upper()
         self.expiration_str = expiration
         self.account = Account(self.coin, self.expiration_str)
@@ -71,44 +105,10 @@ class CarryBacktesting:
 
 
 def main():
-    coins = util.get_all_futures_coins()
-    all_expirations = util.get_all_expirations()
-    all_expired_futures = util.get_expired_futures()
-    spot_markets = util.get_all_spot_markets()
-
-    # todo multithread
-    for expiration in all_expirations:
-        results = list()
-
-        for coin in coins:
-            fut = util.get_future_symbol(coin, expiration)
-
-            future_exists = util.future_exists(fut, all_expired_futures)
-            if not future_exists:
-                continue
-
-            logger.info(fut)
-            backtester = CarryBacktesting()
-
-            try:
-                profit = backtester.backtest_carry(coin, expiration, 3600, use_cache=True, overwrite_results=False)
-            except Exception as e:
-                logger.warning(e)
-                continue
-
-            results.append({
-                'Coin': coin,
-                'Profit': profit,
-            })
-
-        df = pd.DataFrame(results)
-        df.to_csv(f'{config.RESULTS_FOLDER}/{expiration}.csv', index=False)
-
+    c = CarryBacktesting()
+    c.backtest_all(3600, use_cache=True, overwrite_results=False)
     logger.info('done')
 
 
 if __name__ == '__main__':
-    # CarryBacktesting.check_integrity('./results/1INCH-PERP_1INCH-0624.csv')
     main()
-    # c = CarryMarketData('AAVE', '0624', 3600)
-    # c.download()

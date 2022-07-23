@@ -103,8 +103,8 @@ class Account:
             fut_amount = perp_amount
             self.fut_position.update(self.fut_price, fut_amount)
         else:
-            # buy spot, sell futures
-            self.spot_position.update(self.spot_price, perp_amount)
+            # buy perp, sell futures
+            self.perp_position.update(self.perp_price, perp_amount)
             fut_amount = perp_amount
             self.fut_position.update(self.fut_price, -fut_amount)
 
