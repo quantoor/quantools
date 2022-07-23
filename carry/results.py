@@ -11,7 +11,7 @@ class CarryResults:
         self.results_list = list()
         self.df = None
 
-    def append_results_list(self, results_dict):
+    def append_results_list(self, results_dict) -> None:
         self.results_list.append(results_dict)
 
     def get_df(self) -> pd.DataFrame:

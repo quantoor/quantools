@@ -50,7 +50,7 @@ def get_files_in_folder(path: str, extension: str = '*') -> List[Path]:
         return [f for f in Path(path).iterdir() if f.is_file() and f.suffix == extension]
 
 
-def get_folders_in_folder(path: str):
+def get_folders_in_folder(path: str) -> List[Path]:
     return [f for f in Path(path).iterdir() if f.is_dir()]
 
 
