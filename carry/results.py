@@ -43,8 +43,8 @@ class CarryResults:
         fig.suptitle(f'{self.coin} - {self.expiration}')
 
         dates = df['Date']
-        spot_prices = df['SpotPrice']
-        # perp_prices = df['PerpPrice']
+        # spot_prices = df['SpotPrice']
+        perp_prices = df['PerpPrice']
         fut_prices = df['FutPrice']
         basis = df['Basis']
         trades_open_dict = {date: basis for date, basis, trade_open in zip(df['Date'], df['Basis'], df['TradeOpen'])
@@ -57,9 +57,9 @@ class CarryResults:
         funding_paid = df['FundingPaid']
 
         # ax1
-        ax1.plot(dates, spot_prices, linewidth=1)
+        ax1.plot(dates, perp_prices, linewidth=1)
         ax1.plot(dates, fut_prices, linewidth=1)
-        ax1.legend(['spot', 'future'])
+        ax1.legend(['perp', 'future'])
         ax1.set_ylabel('Price $', labelpad=10)
         ax1.grid()
 

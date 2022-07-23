@@ -74,6 +74,7 @@ def main():
     coins = util.get_all_futures_coins()
     all_expirations = util.get_all_expirations()
     all_expired_futures = util.get_expired_futures()
+    spot_markets = util.get_all_spot_markets()
 
     # todo multithread
     for expiration in all_expirations:

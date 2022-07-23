@@ -34,9 +34,10 @@ class CarryMarketData:
         start_ts = self.timestamps[4]
         self.timestamps, self.fut_prices = self.timestamps[4:], self.fut_prices[4:]
 
-        # get spot prices for the same period of the future
-        timestamps_spot, self.spot_prices = util.get_historical_prices(self.spot_symbol, self.resolution, start_ts,
-                                                                       expiry_ts)
+        # todo get spot prices for the same period of the future
+        # timestamps_spot, self.spot_prices = util.get_historical_prices(self.spot_symbol, self.resolution, start_ts,
+        #                                                                expiry_ts)
+        self.spot_prices = np.zeros(len(self.timestamps))
 
         # get perpetual prices for the same period of the future
         timestamps_perp, self.perp_prices = util.get_historical_prices(self.perp_symbol, self.resolution, start_ts,
@@ -45,24 +46,27 @@ class CarryMarketData:
         # get funding rates for the same period of the future
         rates_ts, self.funding_rates = util.get_historical_funding(self.perp_symbol, start_ts, expiry_ts)
 
-        assert len(self.timestamps) == len(timestamps_spot)
+        # assert len(self.timestamps) == len(timestamps_spot)
         assert len(self.timestamps) == len(timestamps_perp)
         assert len(self.timestamps) == len(rates_ts)
-        assert self.timestamps.all() == timestamps_spot.all()
+        # assert self.timestamps.all() == timestamps_spot.all()
         assert self.timestamps.all() == timestamps_perp.all()
         assert self.timestamps.all() == rates_ts.all()
 
         self.save_cache()
 
     def save_cache(self):
-        df = pd.DataFrame({
-            'Timestamp': self.timestamps,
-            'SpotPrice': self.spot_prices,
-            'PerpPrice': self.perp_prices,
-            'FutPrice': self.fut_prices,
-            'FundingRate': self.funding_rates
-        })
-        df.to_csv(self.file_path, index=False)
+        try:
+            df = pd.DataFrame({
+                'Timestamp': self.timestamps,
+                'SpotPrice': self.spot_prices,
+                'PerpPrice': self.perp_prices,
+                'FutPrice': self.fut_prices,
+                'FundingRate': self.funding_rates
+            })
+            df.to_csv(self.file_path, index=False)
+        except Exception as e:
+            raise Exception(f'Could not save market data cache: {e}')
 
     def read_from_file(self) -> bool:
         try:

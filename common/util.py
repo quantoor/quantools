@@ -67,6 +67,16 @@ def get_coin_and_expiration_from_future_symbol(future: str):
     return tmp[0], tmp[1]
 
 
+def get_all_spot_markets() -> List:
+    res = client.get_markets()
+    markets = list()
+    for i in res:
+        if i['type'] == 'spot' and not i['isEtfMarket'] and not i['restricted']:
+            if i['quoteCurrency'] == 'USD':
+                markets.append(i['name'])
+    return markets
+
+
 def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_ts: int):
     print(f'downloading historical prices of {instrument}...', end='')
 
@@ -166,6 +176,7 @@ def future_exists(future: str, expired_futures: Dict) -> bool:
 
 
 if __name__ == '__main__':
+    get_all_spot_markets()
     print(get_all_expirations())
     # start_ts = 0
     # end_ts = date_to_timestamp(2022, 6, 24, 0)

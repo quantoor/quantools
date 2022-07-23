@@ -44,7 +44,7 @@ class Account:
         self.spot_price = spot_price
         self.perp_price = perp_price
         self.fut_price = fut_price
-        self.basis = (spot_price - fut_price) / spot_price * 100
+        self.basis = (perp_price - fut_price) / perp_price * 100  # todo spot price
 
         # check if there is a trade to close
         if self.is_trade_on() and abs(self.basis) < CLOSE_THRESHOLD:
@@ -93,7 +93,8 @@ class Account:
         })
 
     def open_trade(self):
-        spot_amount = TRADE_AMOUNT / self.spot_price
+        # todo buy spot if in contango
+        # spot_amount = TRADE_AMOUNT / self.spot_price
         perp_amount = TRADE_AMOUNT / self.perp_price
 
         if self.basis > 0:
@@ -103,8 +104,8 @@ class Account:
             self.fut_position.update(self.fut_price, fut_amount)
         else:
             # buy spot, sell futures
-            self.spot_position.update(self.spot_price, spot_amount)
-            fut_amount = spot_amount
+            self.spot_position.update(self.spot_price, perp_amount)
+            fut_amount = perp_amount
             self.fut_position.update(self.fut_price, -fut_amount)
 
         self.trades_open[self.date] = self.basis
