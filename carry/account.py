@@ -39,7 +39,7 @@ class Account:
     def is_trade_on(self) -> bool:
         return self.perp_position.size != 0 or self.fut_position.size != 0
 
-    def next(self, date: str, spot_price: float, perp_price: float, fut_price: float, funding_rate: float):
+    def next(self, date: str, spot_price: float, perp_price: float, fut_price: float, funding_rate: float) -> None:
         self.date = date
         self.spot_price = spot_price
         self.perp_price = perp_price
@@ -68,7 +68,7 @@ class Account:
 
         self.update_results()
 
-    def update_results(self):
+    def update_results(self) -> None:
         self.results.append_results_list({
             'Date': self.date,
             'SpotPrice': self.spot_price,
@@ -92,7 +92,7 @@ class Account:
             'CumFundingPaid': self.cum_funding_paid,
         })
 
-    def open_trade(self):
+    def open_trade(self) -> None:
         # todo buy spot if in contango
         # spot_amount = TRADE_AMOUNT / self.spot_price
         perp_amount = TRADE_AMOUNT / self.perp_price
@@ -110,7 +110,7 @@ class Account:
 
         self.trades_open[self.date] = self.basis
 
-    def close_trade(self):
+    def close_trade(self) -> None:
         profit = self.perp_position.get_pnl(self.perp_price) + self.fut_position.get_pnl(self.fut_price)
         self.tot_profit += profit
         self.perp_position.reset()

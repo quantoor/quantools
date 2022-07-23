@@ -26,13 +26,13 @@ class CarryResults:
             raise Exception('Results list is empty')
         return self.results_list[-1]['Equity']
 
-    def read_from_file(self, path: str):
+    def read_from_file(self, path: str) -> None:
         self.df = pd.read_csv(path, parse_dates=['Date'])  # , index_col='Date')
         self.results_list = self.df.to_dict('records')
         for i in self.results_list:  # todo remove this
             i.pop('Unnamed: 0', None)
 
-    def write_to_file(self, path: str):
+    def write_to_file(self, path: str) -> None:
         self.df = self.get_df()
         self.df.to_csv(path, index=False)
 
@@ -105,7 +105,7 @@ class CarryResults:
         fig.tight_layout()
         return fig
 
-    def check_integrity(self):
+    def check_integrity(self) -> None:
         if self.df is None:
             raise Exception('Empty results')
         df = self.df

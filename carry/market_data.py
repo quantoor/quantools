@@ -24,7 +24,7 @@ class CarryMarketData:
         util.create_folder(cache_folder)
         self.file_path = f'{cache_folder}/{coin}_{expiration}_{str(resolution)}.csv'
 
-    def download(self):
+    def download(self) -> None:
         expiry_ts = util.get_expiration_ts_from_str(self.expiration)
 
         # get future prices
@@ -55,7 +55,7 @@ class CarryMarketData:
 
         self.save_cache()
 
-    def save_cache(self):
+    def save_cache(self) -> None:
         try:
             df = pd.DataFrame({
                 'Timestamp': self.timestamps,

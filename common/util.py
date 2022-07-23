@@ -1,12 +1,9 @@
 import datetime as dt
 import logging
 from pathlib import Path
-from typing import List, Dict
-
+from typing import List, Dict, Tuple
 from common.FtxClientRest import FtxClient
-import matplotlib.pyplot as plt
 import numpy as np
-import json
 
 logger = logging.getLogger("Log")
 logger.setLevel(logging.DEBUG)
@@ -40,7 +37,7 @@ def folder_exists(path: str) -> bool:
     return Path(path).is_dir()
 
 
-def create_folder(path: str):
+def create_folder(path: str) -> None:
     if not folder_exists(path):
         p = Path(path)
         p.mkdir(parents=True, exist_ok=True)
@@ -49,25 +46,25 @@ def create_folder(path: str):
 client = FtxClient()  # todo refactor this
 
 
-def get_spot_symbol(coin: str):
+def get_spot_symbol(coin: str) -> str:
     return f'{coin}/USD'
 
 
-def get_perp_symbol(coin: str):
+def get_perp_symbol(coin: str) -> str:
     return f'{coin}-PERP'
 
 
-def get_future_symbol(coin: str, expiration: str):
+def get_future_symbol(coin: str, expiration: str) -> str:
     return f'{coin}-{expiration}'
 
 
-def get_coin_and_expiration_from_future_symbol(future: str):
+def get_coin_and_expiration_from_future_symbol(future: str) -> Tuple[str, str]:
     tmp = future.split('-')
     assert len(tmp) == 2
     return tmp[0], tmp[1]
 
 
-def get_all_spot_markets() -> List:
+def get_all_spot_markets() -> List[str]:
     res = client.get_markets()
     markets = list()
     for i in res:
@@ -77,7 +74,8 @@ def get_all_spot_markets() -> List:
     return markets
 
 
-def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_ts: int):
+def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_ts: int) \
+        -> Tuple[np.ndarray, np.ndarray]:
     print(f'downloading historical prices of {instrument}...', end='')
 
     timestamps = []
@@ -98,7 +96,7 @@ def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_t
     return np.array(timestamps), np.array(prices)
 
 
-def get_historical_funding(instrument: str, start_ts: int, end_ts: int):
+def get_historical_funding(instrument: str, start_ts: int, end_ts: int) -> Tuple[np.ndarray, np.ndarray]:
     print(f'downloading historical funding rate of {instrument}...', end='')
 
     timestamps = []
@@ -126,7 +124,7 @@ def get_all_futures_coins() -> List[str]:
     return sorted(list(coins))
 
 
-def get_expired_futures() -> Dict:
+def get_expired_futures() -> Dict[str, List[str]]:
     coins = get_all_futures_coins()
 
     expirations = client.get_expired_futures()
@@ -149,7 +147,7 @@ def get_expired_futures() -> Dict:
     return expirations_dict
 
 
-def get_expiration_date_from_str(expiration: str):
+def get_expiration_date_from_str(expiration: str) -> dt.datetime:
     if len(expiration) == 4:
         month = expiration[:2]
         day = expiration[2:]
