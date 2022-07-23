@@ -43,6 +43,17 @@ def create_folder(path: str) -> None:
         p.mkdir(parents=True, exist_ok=True)
 
 
+def get_files_in_folder(path: str, extension: str = '*') -> List[Path]:
+    if extension == '*':
+        return [f for f in Path(path).iterdir() if f.is_file()]
+    else:
+        return [f for f in Path(path).iterdir() if f.is_file() and f.suffix == extension]
+
+
+def get_folders_in_folder(path: str):
+    return [f for f in Path(path).iterdir() if f.is_dir()]
+
+
 client = FtxClient()  # todo refactor this
 
 
