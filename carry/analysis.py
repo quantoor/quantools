@@ -10,7 +10,7 @@ font = {  # 'family': 'serif',
     'size': 12,
 }
 
-all_expirations = util.get_all_expirations()
+all_expirations = util.get_historical_expirations()
 
 results_by_coin = {}  # {coin : [profits]}
 results_by_expiration = {}  # {expiration: [profits]}

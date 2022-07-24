@@ -16,7 +16,7 @@ def carry_backtesting():
         coin = st.selectbox('Coin', util.get_all_futures_coins())
 
     with col2:
-        fut_expiration = st.selectbox('Future expiration', util.get_all_expirations())
+        fut_expiration = st.selectbox('Future expiration', util.get_historical_expirations())
 
     # backtesting
     backtester = CarryBacktesting()

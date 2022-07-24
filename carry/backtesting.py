@@ -15,7 +15,7 @@ class CarryBacktesting:
 
     def backtest_all(self, resolution: int, use_cache: bool = True, overwrite_results: bool = False) -> None:
         coins = util.get_all_futures_coins()
-        all_expirations = util.get_all_expirations()
+        all_expirations = util.get_historical_expirations()
         all_expired_futures = util.get_expired_futures()
         # spot_markets = util.get_all_spot_markets()
 

@@ -75,9 +75,9 @@ def get_coin_and_expiration_from_future_symbol(future: str) -> Tuple[str, str]:
     return tmp[0], tmp[1]
 
 
-def get_all_spot_markets() -> List[str]:
+def get_all_spot_markets_symbols() -> List[str]:
     res = client.get_markets()
-    markets = list()
+    markets = []
     for i in res:
         if i['type'] == 'spot' and not i['isEtfMarket'] and not i['restricted']:
             if i['quoteCurrency'] == 'USD':
@@ -174,7 +174,7 @@ def get_expiration_ts_from_str(expiration: str) -> int:
     return int(get_expiration_date_from_str(expiration).timestamp())
 
 
-def get_all_expirations(start_year: int = 2020) -> List[str]:
+def get_historical_expirations(start_year: int = 2020) -> List[str]:
     expirations = list(get_expired_futures().keys())
     return [i for i in expirations if get_expiration_date_from_str(i).year >= start_year]
 
@@ -184,9 +184,19 @@ def future_exists(future: str, expired_futures: Dict) -> bool:
     return expiration in expired_futures.keys() and coin in expired_futures[expiration]
 
 
+def get_all_futures_symbols() -> List[str]:
+    res = client.get_all_futures()
+    return [f['name'] for f in res if f['type'] == 'future' and not f['perpetual']]
+
+
+def get_markets() -> Dict[str, Dict]:
+    res = client.get_markets()
+    return {r['name']: r for r in res if not r['isEtfMarket'] and not r['restricted']}
+
+
 if __name__ == '__main__':
-    get_all_spot_markets()
-    print(get_all_expirations())
+    get_all_spot_markets_symbols()
+    print(get_historical_expirations())
     # start_ts = 0
     # end_ts = date_to_timestamp(2022, 6, 24, 0)
     #
