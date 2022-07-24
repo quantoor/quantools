@@ -21,7 +21,7 @@ def carry_backtesting():
     # backtesting
     backtester = CarryBacktesting()
     backtester.backtest_single(coin, fut_expiration, 3600, use_cache=True, overwrite_results=False)
-    fig = backtester.account.results.get_figure(backtester.results_path)  # todo refactor this
+    fig = backtester.account.results.get_figure()  # todo fix this
     st.pyplot(fig)
 
 
