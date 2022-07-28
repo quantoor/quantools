@@ -85,9 +85,10 @@ def get_all_spot_markets_symbols() -> List[str]:
     return markets
 
 
-def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_ts: int) \
+def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_ts: int, verbose: bool = False) \
         -> Tuple[np.ndarray, np.ndarray]:
-    print(f'downloading historical prices of {instrument}...', end='')
+    if verbose:
+        print(f'downloading historical prices of {instrument}...', end='')
 
     timestamps = []
     prices = []
@@ -101,14 +102,17 @@ def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_t
         for i in reversed(res):
             timestamps.insert(0, int(i['time'] / 1000))
             prices.insert(0, i['open'])
-        print('...', end='')
+        if verbose:
+            print('...', end='')
 
-    print('done')
+    if verbose:
+        print('done')
     return np.array(timestamps), np.array(prices)
 
 
-def get_historical_funding(instrument: str, start_ts: int, end_ts: int) -> Tuple[np.ndarray, np.ndarray]:
-    print(f'downloading historical funding rate of {instrument}...', end='')
+def get_historical_funding(instrument: str, start_ts: int, end_ts: int, verbose : bool = False) -> Tuple[np.ndarray, np.ndarray]:
+    if verbose:
+        print(f'downloading historical funding rate of {instrument}...', end='')
 
     timestamps = []
     rates = []
@@ -120,9 +124,11 @@ def get_historical_funding(instrument: str, start_ts: int, end_ts: int) -> Tuple
         for i in res:
             timestamps.insert(0, iso_date_to_timestamp(i['time']))
             rates.insert(0, i['rate'])
-        print('...', end='')
+        if verbose:
+            print('...', end='')
 
-    print('done')
+    if verbose:
+        print('done')
     return np.array(timestamps), np.array(rates)
 
 

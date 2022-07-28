@@ -6,6 +6,8 @@ import datetime as dt
 import config
 from market_data import CarryMarketData
 from account import Account
+from typing import List
+import matplotlib.pyplot as plt
 
 
 class CarryBacktesting:
@@ -13,18 +15,17 @@ class CarryBacktesting:
         self.account = None
         self.market_data = None
 
-    def backtest_all(self, resolution: int, use_cache: bool = True, overwrite_results: bool = False) -> None:
+    def backtest_multi(self, expiries: List[str], resolution: int, use_cache: bool = True, overwrite_results: bool = False) -> None:
         coins = util.get_all_futures_coins()
-        all_expirations = util.get_historical_expirations()
         all_expired_futures = util.get_expired_futures()
         # spot_markets = util.get_all_spot_markets()
 
         # todo multithread
-        for expiration in all_expirations:
+        for expiry in expiries:
             results = list()
 
             for coin in coins:
-                fut = util.get_future_symbol(coin, expiration)
+                fut = util.get_future_symbol(coin, expiry)
 
                 future_exists = util.future_exists(fut, all_expired_futures)
                 if not future_exists:
@@ -33,7 +34,7 @@ class CarryBacktesting:
                 logger.info(fut)
 
                 try:
-                    profit = self.backtest_single(coin, expiration, resolution, use_cache, overwrite_results)
+                    profit = self.backtest_single(coin, expiry, resolution, use_cache, overwrite_results)
                 except Exception as e:
                     logger.warning(e)
                     continue
@@ -44,7 +45,7 @@ class CarryBacktesting:
                 })
 
             df = pd.DataFrame(results)
-            df.to_csv(f'{config.RESULTS_FOLDER}/{expiration}.csv', index=False)
+            df.to_csv(f'{config.RESULTS_FOLDER}/{expiry}.csv', index=False)
 
     def backtest_single(self, coin: str, expiration: str, resolution: int, use_cache: bool = True,
                         overwrite_results: bool = False) -> float:
@@ -73,6 +74,7 @@ class CarryBacktesting:
             fig = self.account.results.get_figure(results_path)
             fig_path = name_path + '.png'
             fig.savefig(fig_path)
+            plt.close(fig)
 
             logger.info(self.account)
 
@@ -99,8 +101,9 @@ class CarryBacktesting:
 
 
 def main():
+    all_expiries = util.get_historical_expirations()
     c = CarryBacktesting()
-    c.backtest_all(3600, use_cache=True, overwrite_results=False)
+    c.backtest_multi(all_expiries, 3600, use_cache=True, overwrite_results=True)
     logger.info('Done')
 
 

@@ -52,7 +52,7 @@ ax.boxplot(list(data.values()))
 
 fig1, ax = plt.subplots(figsize=(12, 6))
 fig1.suptitle('Profits by expiration')
-ax.set_xticklabels(results_by_expiration.keys(), rotation=90, fontsize=8)
+ax.set_xticklabels(results_by_expiration.keys(), rotation=45, fontsize=8)
 ax.boxplot(list(results_by_expiration.values()))
 
 plt.show()

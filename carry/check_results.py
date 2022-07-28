@@ -7,7 +7,7 @@ results_folders = util.get_folders_in_folder(f'{config.RESULTS_FOLDER}')
 
 for folder in results_folders:
 
-    results_files = util.get_files_in_folder(folder, '.csv')
+    results_files = util.get_files_in_folder(folder.name, '.csv')
 
     for file in results_files:
 
