@@ -169,7 +169,6 @@ def put_rho(S, K, r, t, vol):
     return rho / 100.0
 
 
-
 def call_implied_volatility_objective_function(S, K, r, t, vol, call_option_market_price):
     """ Objective function which sets market and model prices to zero
     :param S: underlying
