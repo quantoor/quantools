@@ -10,124 +10,124 @@ INIT_OPEN_THRESHOLD = 1.  # %
 
 class Account:
     def __init__(self, coin: str, expiration: str):
-        self.spot_position = Position()
-        self.perp_position = Position()
-        self.fut_position = Position()
-        self.tot_profit = 0.
+        self._spot_position = Position()
+        self._perp_position = Position()
+        self._fut_position = Position()
+        self._tot_profit = 0.
 
-        self.spot_price = 0.
-        self.perp_price = 0.
-        self.fut_price = 0.
-        self.basis = 0.
-        self.date = None
+        self._spot_price = 0.
+        self._perp_price = 0.
+        self._fut_price = 0.
+        self._basis = 0.
+        self._date = None
 
-        self.trades_open = {}  # {date: basis}
-        self.trades_close = {}  # {date: basis}
+        self._trades_open = {}  # {date: basis}
+        self._trades_close = {}  # {date: basis}
 
-        self.last_open_basis = 0.
-        self.current_open_threshold = INIT_OPEN_THRESHOLD
+        self._last_open_basis = 0.
+        self._current_open_threshold = INIT_OPEN_THRESHOLD
 
-        self.funding_rate = 0.
-        self.funding_paid = 0.
-        self.cum_funding_paid = 0.
+        self._funding_rate = 0.
+        self._funding_paid = 0.
+        self._cum_funding_paid = 0.
 
         self.results = CarryResults(coin, expiration)
 
     def __str__(self):
-        return f'Total profit: {round(self.tot_profit, 2)}'
+        return f'Total profit: {round(self._tot_profit, 2)}'
 
     def is_trade_on(self) -> bool:
-        return self.perp_position.size != 0 or self.fut_position.size != 0
+        return self._perp_position.size != 0 or self._fut_position.size != 0
 
     def next(self, date: str, spot_price: float, perp_price: float, fut_price: float, funding_rate: float) -> None:
-        self.date = date
-        self.spot_price = spot_price
-        self.perp_price = perp_price
-        self.fut_price = fut_price
-        self.basis = (perp_price - fut_price) / perp_price * 100  # todo spot price
+        self._date = date
+        self._spot_price = spot_price
+        self._perp_price = perp_price
+        self._fut_price = fut_price
+        self._basis = (perp_price - fut_price) / perp_price * 100  # todo spot price
 
         # check if there is a trade to close
-        if self.is_trade_on() and abs(self.basis) < CLOSE_THRESHOLD:
+        if self.is_trade_on() and abs(self._basis) < CLOSE_THRESHOLD:
             self.close_trade()
 
-        elif self.is_trade_on() and abs(self.basis - self.last_open_basis) > 5:
+        elif self.is_trade_on() and abs(self._basis - self._last_open_basis) > 5:
             self.close_trade()
-            self.last_open_basis = 0
-            self.current_open_threshold = self.basis + 1
+            self._last_open_basis = 0
+            self._current_open_threshold = self._basis + 1
 
         # check if there is a trade to open
-        elif abs(self.basis) >= self.current_open_threshold:
+        elif abs(self._basis) >= self._current_open_threshold:
             self.open_trade()
-            self.current_open_threshold = max(self.current_open_threshold + 1., self.basis)
-            self.last_open_basis = self.basis
+            self._current_open_threshold = max(self._current_open_threshold + 1., self._basis)
+            self._last_open_basis = self._basis
 
         # compute funding
-        self.funding_rate = funding_rate
-        self.funding_paid = funding_rate * self.perp_position.size * self.perp_price
-        self.cum_funding_paid += self.funding_paid
+        self._funding_rate = funding_rate
+        self._funding_paid = funding_rate * self._perp_position.size * self._perp_price
+        self._cum_funding_paid += self._funding_paid
 
         self.update_results()
 
     def update_results(self) -> None:
         self.results.append_results_list({
-            'Date': self.date,
-            'SpotPrice': self.spot_price,
-            'SpotPosSize': self.spot_position.size,
-            'SpotPosEntryPrice': self.spot_position.entry_price,
-            'PerpPrice': self.perp_price,
-            'PerpPosSize': self.perp_position.size,
-            'PerpPosEntryPrice': self.perp_position.entry_price,
-            'PerpPosPnl': self.perp_position.get_pnl(self.perp_price),
-            'FutPrice': self.fut_price,
-            'FutPosSize': self.fut_position.size,
-            'FutPosEntryPrice': self.fut_position.entry_price,
-            'FutPosPnl': self.fut_position.get_pnl(self.fut_price),
-            'Basis': self.basis,
-            'TradeOpen': True if (self.date in self.trades_open) else False,
-            'TradeClose': True if (self.date in self.trades_close) else False,
-            'Pnl': self.get_tot_pnl(self.perp_price, self.fut_price),
-            'Equity': self.get_equity(self.perp_price, self.fut_price),
-            'FundingRate': self.funding_rate,
-            'FundingPaid': self.funding_paid,
-            'CumFundingPaid': self.cum_funding_paid,
+            'Date': self._date,
+            'SpotPrice': self._spot_price,
+            'SpotPosSize': self._spot_position.size,
+            'SpotPosEntryPrice': self._spot_position.entry_price,
+            'PerpPrice': self._perp_price,
+            'PerpPosSize': self._perp_position.size,
+            'PerpPosEntryPrice': self._perp_position.entry_price,
+            'PerpPosPnl': self._perp_position.get_pnl(self._perp_price),
+            'FutPrice': self._fut_price,
+            'FutPosSize': self._fut_position.size,
+            'FutPosEntryPrice': self._fut_position.entry_price,
+            'FutPosPnl': self._fut_position.get_pnl(self._fut_price),
+            'Basis': self._basis,
+            'TradeOpen': True if (self._date in self._trades_open) else False,
+            'TradeClose': True if (self._date in self._trades_close) else False,
+            'Pnl': self.get_tot_pnl(self._perp_price, self._fut_price),
+            'Equity': self.get_equity(self._perp_price, self._fut_price),
+            'FundingRate': self._funding_rate,
+            'FundingPaid': self._funding_paid,
+            'CumFundingPaid': self._cum_funding_paid,
         })
 
     def open_trade(self) -> None:
         # todo buy spot if in contango
         # spot_amount = TRADE_AMOUNT / self.spot_price
-        perp_amount = TRADE_AMOUNT / self.perp_price
+        perp_amount = TRADE_AMOUNT / self._perp_price
 
-        if self.basis > 0:
+        if self._basis > 0:
             # sell perp, buy futures
-            self.perp_position.update(self.perp_price, -perp_amount)
+            self._perp_position.update(self._perp_price, -perp_amount)
             fut_amount = perp_amount
-            self.fut_position.update(self.fut_price, fut_amount)
+            self._fut_position.update(self._fut_price, fut_amount)
         else:
             # buy perp, sell futures
-            self.perp_position.update(self.perp_price, perp_amount)
+            self._perp_position.update(self._perp_price, perp_amount)
             fut_amount = perp_amount
-            self.fut_position.update(self.fut_price, -fut_amount)
+            self._fut_position.update(self._fut_price, -fut_amount)
 
-        self.trades_open[self.date] = self.basis
+        self._trades_open[self._date] = self._basis
 
     def close_trade(self) -> None:
-        profit = self.perp_position.get_pnl(self.perp_price) + self.fut_position.get_pnl(self.fut_price)
-        self.tot_profit += profit
-        self.perp_position.reset()
-        self.fut_position.reset()
-        self.current_open_threshold = INIT_OPEN_THRESHOLD
+        profit = self._perp_position.get_pnl(self._perp_price) + self._fut_position.get_pnl(self._fut_price)
+        self._tot_profit += profit
+        self._perp_position.reset()
+        self._fut_position.reset()
+        self._current_open_threshold = INIT_OPEN_THRESHOLD
 
-        self.trades_close[self.date] = self.basis
+        self._trades_close[self._date] = self._basis
         logger.debug(f'Profit: {round(profit, 2)}')
 
     def get_tot_pnl(self, perp_price: float, fut_price: float) -> float:
-        return self.perp_position.get_pnl(perp_price) + self.fut_position.get_pnl(fut_price)
+        return self._perp_position.get_pnl(perp_price) + self._fut_position.get_pnl(fut_price)
 
     def get_equity(self, perp_price: float, fut_price: float) -> float:
-        return self.tot_profit + self.get_tot_pnl(perp_price, fut_price) - self.cum_funding_paid
+        return self._tot_profit + self.get_tot_pnl(perp_price, fut_price) - self._cum_funding_paid
 
     def get_net_profit(self) -> float:
-        return self.tot_profit - self.cum_funding_paid
+        return self._tot_profit - self._cum_funding_paid
 
     def get_results(self) -> pd.DataFrame:
         return self.results.get_df()

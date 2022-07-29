@@ -5,42 +5,42 @@ import matplotlib.pyplot as plt
 
 
 class CarryResults:
-    def __init__(self, coin: str, expiration: str):
-        self.coin = coin
-        self.expiration = expiration
-        self.results_list = list()
-        self.df = None
+    def __init__(self, coin: str, expiry: str):
+        self._coin = coin
+        self._expiry = expiry
+        self._results_list = list()
+        self._df = None
 
     def append_results_list(self, results_dict) -> None:
-        self.results_list.append(results_dict)
+        self._results_list.append(results_dict)
 
     def get_df(self) -> pd.DataFrame:
-        if self.df is None:
-            self.df = pd.DataFrame(self.results_list)
+        if self._df is None:
+            self._df = pd.DataFrame(self._results_list)
             # df['Timestamp'] = [dt.datetime.fromtimestamp(ts) for ts in df['Date']]  # add a column with a date format
             # df.set_index('Timestamp', inplace=True)
-        return self.df
+        return self._df
 
     def get_final_equity(self) -> float:
-        if len(self.results_list) == 0:
+        if len(self._results_list) == 0:
             raise Exception('Results list is empty')
-        return self.results_list[-1]['Equity']
+        return self._results_list[-1]['Equity']
 
     def read_from_file(self, path: str) -> None:
-        self.df = pd.read_csv(path, parse_dates=['Date'])  # , index_col='Date')
-        self.results_list = self.df.to_dict('records')
-        for i in self.results_list:  # todo remove this
+        self._df = pd.read_csv(path, parse_dates=['Date'])  # , index_col='Date')
+        self._results_list = self._df.to_dict('records')
+        for i in self._results_list:  # todo remove this
             i.pop('Unnamed: 0', None)
 
     def write_to_file(self, path: str) -> None:
-        self.df = self.get_df()
-        self.df.to_csv(path, index=False)
+        self._df = self.get_df()
+        self._df.to_csv(path, index=False)
 
     def get_figure(self, path: str) -> matplotlib.figure:
         df = pd.read_csv(path, parse_dates=['Date'])
 
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(12, 6), sharex='col')
-        fig.suptitle(f'{self.coin} - {self.expiration}')
+        fig.suptitle(f'{self._coin} - {self._expiry}')
 
         dates = df['Date']
         # spot_prices = df['SpotPrice']
@@ -106,9 +106,9 @@ class CarryResults:
         return fig
 
     def check_integrity(self) -> None:
-        if self.df is None:
+        if self._df is None:
             raise Exception('Empty results')
-        df = self.df
+        df = self._df
 
         for i in range(1, len(df.index)):
             line = i + 1

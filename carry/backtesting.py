@@ -13,9 +13,10 @@ import matplotlib.pyplot as plt
 class CarryBacktesting:
     def __init__(self):
         self.account = None
-        self.market_data = None
+        self._market_data = None
 
-    def backtest_multi(self, expiries: List[str], resolution: int, use_cache: bool = True, overwrite_results: bool = False) -> None:
+    def backtest_multi(self, expiries: List[str], resolution: int, use_cache: bool = True,
+                       overwrite_results: bool = False) -> None:
         coins = util.get_all_futures_coins()
         all_expired_futures = util.get_expired_futures()
         # spot_markets = util.get_all_spot_markets()
@@ -67,7 +68,7 @@ class CarryBacktesting:
             else:
                 market_data.download()
 
-            self.market_data = market_data
+            self._market_data = market_data
             self._backtest()
             self.account.save_results(results_path)
 
@@ -83,16 +84,16 @@ class CarryBacktesting:
         return self.account.results.get_final_equity()
 
     def _backtest(self) -> None:
-        timestamps = self.market_data.timestamps
+        timestamps = self._market_data.timestamps
         # dates = mdates.num2date(mdates.datestr2num(times))
         # dates = [dt.datetime.fromtimestamp(ts).strftime("%Y-%m-%d_%H:%M:%S") for ts in perp_ts]
         dates = np.array([dt.datetime.fromtimestamp(ts).isoformat() for ts in timestamps])
 
         for i, date in enumerate(dates):
-            spot_price = self.market_data.spot_prices[i]
-            perp_price = self.market_data.perp_prices[i]
-            fut_price = self.market_data.fut_prices[i]
-            funding_rate = self.market_data.funding_rates[i]
+            spot_price = self._market_data.spot_prices[i]
+            perp_price = self._market_data.perp_prices[i]
+            fut_price = self._market_data.fut_prices[i]
+            funding_rate = self._market_data.funding_rates[i]
             self.account.next(date, spot_price, perp_price, fut_price, funding_rate)
 
         if self.account.is_trade_on():

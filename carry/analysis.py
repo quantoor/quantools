@@ -55,4 +55,13 @@ fig1.suptitle('Profits by expiration')
 ax.set_xticklabels(results_by_expiration.keys(), rotation=45, fontsize=8)
 ax.boxplot(list(results_by_expiration.values()))
 
+tot_profit = 0.
+for i in results_by_expiration:
+    profit = sum(results_by_expiration[i])
+    profit = round(profit/1000.)
+    print(f'{i}: ${profit} k')
+    tot_profit += profit
+
+print(f'tot profit: ${tot_profit} k')
+
 plt.show()
