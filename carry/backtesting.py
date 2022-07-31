@@ -18,7 +18,10 @@ class CarryBacktesting:
     def backtest_multi(self, expiries: List[str], resolution: int, use_cache: bool = True,
                        overwrite_results: bool = False) -> None:
         coins = util.get_all_futures_coins()
-        all_expired_futures = util.get_expired_futures()
+        expired_futures = util.get_expired_futures()
+        active_futures = util.get_active_futures_with_expiry()
+        all_futures = expired_futures | active_futures
+
         # spot_markets = util.get_all_spot_markets()
 
         # todo multithread
@@ -28,7 +31,7 @@ class CarryBacktesting:
             for coin in coins:
                 fut = util.get_future_symbol(coin, expiry)
 
-                future_exists = util.future_exists(fut, all_expired_futures)
+                future_exists = util.future_exists(fut, all_futures)
                 if not future_exists:
                     continue
 
@@ -101,12 +104,18 @@ class CarryBacktesting:
             self.account.update_results()
 
 
-def main():
+def expired():
     all_expiries = util.get_historical_expirations()
     c = CarryBacktesting()
     c.backtest_multi(all_expiries, 3600, use_cache=True, overwrite_results=True)
-    logger.info('Done')
+
+
+def live():
+    all_expiries = ['0930']
+    c = CarryBacktesting()
+    c.backtest_multi(all_expiries, 3600, use_cache=True, overwrite_results=False)
 
 
 if __name__ == '__main__':
-    main()
+    live()
+    logger.info('Done')

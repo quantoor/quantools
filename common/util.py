@@ -75,13 +75,22 @@ def get_coin_and_expiration_from_future_symbol(future: str) -> Tuple[str, str]:
     return tmp[0], tmp[1]
 
 
-def get_all_spot_markets_symbols() -> List[str]:
+def get_all_spot_symbols() -> List[str]:
     res = client.get_markets()
     markets = []
     for i in res:
         if i['type'] == 'spot' and not i['isEtfMarket'] and not i['restricted']:
             if i['quoteCurrency'] == 'USD':
                 markets.append(i['name'])
+    return markets
+
+
+def get_all_perp_symbols() -> List[str]:
+    res = client.get_markets()
+    markets = []
+    for i in res:
+        if i['futureType'] == 'perpetual' and not i['isEtfMarket'] and not i['restricted']:
+            markets.append(i['name'])
     return markets
 
 
@@ -110,7 +119,8 @@ def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_t
     return np.array(timestamps), np.array(prices)
 
 
-def get_historical_funding(instrument: str, start_ts: int, end_ts: int, verbose : bool = False) -> Tuple[np.ndarray, np.ndarray]:
+def get_historical_funding(instrument: str, start_ts: int, end_ts: int, verbose: bool = False) -> Tuple[
+    np.ndarray, np.ndarray]:
     if verbose:
         print(f'downloading historical funding rate of {instrument}...', end='')
 
@@ -141,27 +151,52 @@ def get_all_futures_coins() -> List[str]:
     return sorted(list(coins))
 
 
+def get_active_futures_with_expiry() -> Dict[str, List[str]]:
+    """
+    Get active futures with expiry. Returns: Dictionary of expiries to list of coins.
+    """
+    markets = client.get_markets()
+    expiries_dict = {}
+
+    for i in markets:
+        if i['futureType'] == 'future' and not i['restricted'] and not i['isEtfMarket']:
+            coin, expiry = get_coin_and_expiration_from_future_symbol(i['name'])
+            if expiry in expiries_dict:
+                expiries_dict[expiry].append(coin)
+            else:
+                expiries_dict[expiry] = [coin]
+
+    for k, v in expiries_dict.items():
+        expiries_dict[k] = sorted(v)
+
+    return expiries_dict
+
+
 def get_expired_futures() -> Dict[str, List[str]]:
+    """
+    Get expired futures. Returns: Dictionary of expiries to list of coins.
+    """
+
     coins = get_all_futures_coins()
 
-    expirations = client.get_expired_futures()
-    expirations_dict = dict()
-    for i in expirations:
+    expiries = client.get_expired_futures()
+    expiries_dict = dict()
+    for i in expiries:
         underlying = i['underlying']
 
         if underlying in coins and i['type'] == 'future':
             name = i['name']
-            expiration = name.split('-')[1]
+            expiry = name.split('-')[1]
 
-            if expiration not in expirations_dict:
-                expirations_dict[expiration] = [underlying]
+            if expiry not in expiries_dict:
+                expiries_dict[expiry] = [underlying]
             else:
-                expirations_dict[expiration].append(underlying)
+                expiries_dict[expiry].append(underlying)
 
-    for k, v in expirations_dict.items():
-        expirations_dict[k] = sorted(v)
+    for k, v in expiries_dict.items():
+        expiries_dict[k] = sorted(v)
 
-    return expirations_dict
+    return expiries_dict
 
 
 def get_expiration_date_from_str(expiration: str) -> dt.datetime:
@@ -201,7 +236,7 @@ def get_markets() -> Dict[str, Dict]:
 
 
 if __name__ == '__main__':
-    get_all_spot_markets_symbols()
+    get_all_spot_symbols()
     print(get_historical_expirations())
     # start_ts = 0
     # end_ts = date_to_timestamp(2022, 6, 24, 0)
