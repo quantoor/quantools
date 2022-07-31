@@ -4,6 +4,7 @@ from ftx_connector_rest import FtxConnectorRest
 from ftx_connector_ws import FtxConnectorWs
 from typing import List
 from types_ import WsTicker
+import config
 
 
 def get_funding_rate(symbol: str):
@@ -34,8 +35,8 @@ def get_funding_rate(symbol: str):
 
 class CarryBot:
     def __init__(self):
-        self._connector_rest = FtxConnectorRest()
-        self._connector_ws = FtxConnectorWs()
+        self._connector_rest = FtxConnectorRest(config.API_KEY, config.API_SECRET, config.SUB_ACCOUNT)
+        self._connector_ws = FtxConnectorWs(config.API_KEY, config.API_SECRET)
         self._connector_ws.process_ticker_cb = self.process_ticker
 
     def start(self, coins: List[str], expiry: str):

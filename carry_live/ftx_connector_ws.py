@@ -6,8 +6,8 @@ from types_ import WsTicker
 
 
 class FtxConnectorWs:
-    def __init__(self):
-        self._client = FtxWebsocketClient()
+    def __init__(self, api_key: str = '', api_secret: str = ''):
+        self._client = FtxWebsocketClient(api_key, api_secret)
         self._coins: List[str] = []
         self._expiry: str = ''
         self._is_listening: bool = False
