@@ -14,25 +14,6 @@ def get_funding_rate(symbol: str):
     return avg * 24 * 365 * 100
 
 
-# markets = util.get_markets()
-# future_symbols = util.get_all_futures_symbols()
-# for future in future_symbols:
-#
-#     coin, _ = util.get_coin_and_expiration_from_future_symbol(future)
-#     perp = util.get_perp_symbol(coin)
-#
-#     if future not in markets.keys():
-#         continue
-#
-#     future_price = markets[future]['price']
-#     perp_price = markets[perp]['price']
-#
-#     basis = (future_price-perp_price)/perp_price*100
-#     if abs(basis) > 1.5:
-#         fr = get_funding_rate(perp)
-#         print(f'{future}: {round(basis, 2)}%, funding: {round(fr, 2)}%')
-
-
 class CarryBot:
     def __init__(self):
         self._connector_rest = FtxConnectorRest(config.API_KEY, config.API_SECRET, config.SUB_ACCOUNT)
@@ -51,5 +32,9 @@ class CarryBot:
 
 
 if __name__ == '__main__':
+    active_futures = util.get_active_futures_with_expiry()
+    _expiry = '0930'
+    _coins = [coin for coin in active_futures[_expiry] if coin not in config.BLACKLIST]
+
     bot = CarryBot()
-    bot.start(['BTC', 'ETH'], '0930')
+    bot.start(_coins, _expiry)
