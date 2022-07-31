@@ -235,6 +235,10 @@ def get_markets() -> Dict[str, Dict]:
     return {r['name']: r for r in res if not r['isEtfMarket'] and not r['restricted']}
 
 
+def round_to_tick(price: float, tick: float) -> float:
+    return round(price / tick) * tick
+
+
 if __name__ == '__main__':
     get_all_spot_symbols()
     print(get_historical_expirations())

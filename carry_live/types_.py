@@ -23,7 +23,7 @@ class Position:
 
 class Order:
     def __init__(self, res: Dict[str, Any]):
-        self.id: int = res['id']
+        self.id: str = str(res['id'])
         self.client_id: str = res['clientId']
         self.market: str = res['market']
         self.type: str = res['type']
@@ -40,8 +40,8 @@ class MarketInfo:
     def __init__(self, res: Dict[str, Any]):
         self.name: str = res['name']
         self.price_increment: float = res['priceIncrement']
-        self.size_increment: str = res['sizeIncrement']
-        self.min_provide_size: str = res['minProvideSize']
+        self.size_increment: float = res['sizeIncrement']
+        self.min_provide_size: float = res['minProvideSize']
         self.bid: float = res['bid']
         self.ask: float = res['ask']
         self.type: str = res['type']
