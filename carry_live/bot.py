@@ -2,6 +2,7 @@ from common import util
 import numpy as np
 from ftx_connector_rest import FtxConnectorRest
 from ftx_connector_ws import FtxConnectorWs
+from typing import List
 
 
 def get_funding_rate(symbol: str):
@@ -30,6 +31,16 @@ def get_funding_rate(symbol: str):
 #         print(f'{future}: {round(basis, 2)}%, funding: {round(fr, 2)}%')
 
 
+class CarryBot:
+    def __init__(self):
+        self._connector_ws = FtxConnectorWs()
+        self._connector_rest = FtxConnectorRest()
+
+    def start(self, coins: List[str], expiry: str):
+        self._connector_ws.subscribe(coins, expiry)
+        self._connector_ws.listen_to_tickers()
+
+
 if __name__ == '__main__':
-    connector_ws = FtxConnectorWs()
-    connector_ws.start()
+    bot = CarryBot()
+    bot.start(['BTC', 'ETH'], '0930')
