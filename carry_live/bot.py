@@ -20,6 +20,7 @@ class CarryBot:
         self._connector_ws = FtxConnectorWs(config.API_KEY, config.API_SECRET)
         self._connector_ws.process_ticker_cb = self.process_ticker
         self._expiry: str = ''
+        self._markets_info = self._connector_rest.get_markets_info()
 
     def start(self, coins: List[str], expiry: str):
         self._expiry = expiry
@@ -32,12 +33,12 @@ class CarryBot:
         basis = (perp_price - fut_price) / perp_price * 100
         print(f'{coin} basis: {round(basis, 2)}%')
 
-        # perp_symbol = util.get_perp_symbol(coin)
-        # fut_symbol = util.get_future_symbol(coin, self._expiry)
+        perp_symbol = util.get_perp_symbol(coin)
+        fut_symbol = util.get_future_symbol(coin, self._expiry)
 
-        # self._connector_rest.buy_limit(perp_symbol, 0.9 * perp_price, 0.001)
-        # self._connector_rest.sell_limit(perp_symbol, 1.1 * perp_price, 0.001)
-        # exit()
+        self._connector_rest.buy_limit(perp_symbol, 0.9 * perp_price, 0.001)
+        self._connector_rest.sell_limit(fut_symbol, 1.1 * fut_price, 0.001)
+        exit()
 
 
 if __name__ == '__main__':
@@ -46,6 +47,4 @@ if __name__ == '__main__':
     _coins = [coin for coin in active_futures[_expiry] if coin not in config.BLACKLIST]
 
     bot = CarryBot()
-    res = bot._connector_rest.get_open_orders()
-    print(res)
     bot.start(['BTC'], _expiry)

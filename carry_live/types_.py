@@ -21,7 +21,7 @@ class Position:
         # todo
 
 
-class OpenOrder:
+class Order:
     def __init__(self, res: Dict[str, Any]):
         self.id: int = res['id']
         self.client_id: str = res['clientId']
@@ -34,3 +34,16 @@ class OpenOrder:
         self.remaining_size: float = res['remainingSize']
         self.created_at: str = res['createdAt']
         self.future: str = res['future']
+
+
+class MarketInfo:
+    def __init__(self, res: Dict[str, Any]):
+        self.name: str = res['name']
+        self.price_increment: float = res['priceIncrement']
+        self.size_increment: str = res['sizeIncrement']
+        self.min_provide_size: str = res['minProvideSize']
+        self.bid: float = res['bid']
+        self.ask: float = res['ask']
+        self.type: str = res['type']
+        self.future_type: str = res['futureType']
+        self.underlying: str = res['underlying']
