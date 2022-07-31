@@ -132,3 +132,4 @@ dmypy.json
 
 cache/
 results/
+config.json

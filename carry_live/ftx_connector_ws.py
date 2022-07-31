@@ -1,7 +1,8 @@
 from common.FtxClientWs import FtxWebsocketClient
 import time
-from typing import List, Dict
+from typing import List
 from common import util
+from types_ import WsTicker
 
 
 class FtxConnectorWs:
@@ -9,7 +10,8 @@ class FtxConnectorWs:
         self._client = FtxWebsocketClient()
         self._coins: List[str] = []
         self._expiry: str = ''
-        self._is_listening = False
+        self._is_listening: bool = False
+        self.process_ticker_cb = None
 
     def subscribe(self, coins: List[str], expiry: str) -> None:
         self._coins = coins
@@ -39,19 +41,4 @@ class FtxConnectorWs:
         if perp_ticker is None or fut_ticker is None:
             return
 
-        perp_price = perp_ticker.mark
-        fut_price = fut_ticker.mark
-        basis = (perp_price - fut_price) / perp_price * 100
-
-        print(f'{fut} basis: {round(basis, 2)}%')
-
-
-class WsTicker:
-    def __init__(self, ws_ticker: Dict[str, float]):
-        self.bid: float = ws_ticker['bid']
-        self.ask: float = ws_ticker['ask']
-        self.mark: float = (self.bid + self.ask) / 2
-        self.bid_size: float = ws_ticker['bidSize']
-        self.ask_size: float = ws_ticker['askSize']
-        self.last: float = ws_ticker['last']
-        self.time: float = ws_ticker['time']
+        self.process_ticker_cb(fut, perp_ticker, fut_ticker)

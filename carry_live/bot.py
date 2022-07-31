@@ -3,6 +3,7 @@ import numpy as np
 from ftx_connector_rest import FtxConnectorRest
 from ftx_connector_ws import FtxConnectorWs
 from typing import List
+from types_ import WsTicker
 
 
 def get_funding_rate(symbol: str):
@@ -33,12 +34,19 @@ def get_funding_rate(symbol: str):
 
 class CarryBot:
     def __init__(self):
-        self._connector_ws = FtxConnectorWs()
         self._connector_rest = FtxConnectorRest()
+        self._connector_ws = FtxConnectorWs()
+        self._connector_ws.process_ticker_cb = self.process_ticker
 
     def start(self, coins: List[str], expiry: str):
         self._connector_ws.subscribe(coins, expiry)
         self._connector_ws.listen_to_tickers()
+
+    def process_ticker(self, fut: str, perp_ticker: WsTicker, fut_ticker: WsTicker) -> None:
+        perp_price = perp_ticker.mark
+        fut_price = fut_ticker.mark
+        basis = (perp_price - fut_price) / perp_price * 100
+        print(f'{fut} basis: {round(basis, 2)}%')
 
 
 if __name__ == '__main__':
