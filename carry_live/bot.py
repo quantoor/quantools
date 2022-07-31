@@ -37,13 +37,15 @@ class CarryBot:
         perp_symbol = util.get_perp_symbol(coin)
         fut_symbol = util.get_future_symbol(coin, self._expiry)
 
-        buy_id = self.buy_limit(perp_symbol, perp_price, 0.001)  # todo determine size
-        if buy_id != '':
-            sell_id = self.sell_limit(fut_symbol, fut_price, 0.001)
-            if sell_id == '':
-                self.cancel_order(buy_id)
+        # todo determine size
+        # todo handle strategy
+        # buy_id = self.place_order_limit(perp_symbol, 0.8 * perp_price, 0.001, True)
+        # if buy_id:
+        #     sell_id = self.place_order_limit(fut_symbol, 1.2 * fut_price, 0.001, False)
+        #     if not sell_id:
+        #         self.cancel_order(buy_id)
 
-    def buy_limit(self, market: str, price: float, size: float) -> str:
+    def place_order_limit(self, market: str, price: float, size: float, is_buy: bool) -> str:
         market_info = self._markets_info[market]
         price_rounded = util.round_to_tick(price, market_info.price_increment)
         size_rounded = util.round_to_tick(size, market_info.size_increment)
@@ -51,21 +53,13 @@ class CarryBot:
             logger.warn(f'Rounded buy size for {market} is {size_rounded}, which is less than the minimum size')
             return ''
         try:
-            self._connector_rest.buy_limit(market, price_rounded, size_rounded)
+            if is_buy:
+                return self._connector_rest.buy_limit(market, price_rounded, size_rounded)
+            else:
+                return self._connector_rest.sell_limit(market, price_rounded, size_rounded)
         except Exception as e:
-            logger.error(f'Could not place limit buy order for {market}: {e}')
-
-    def sell_limit(self, market: str, price: float, size: float) -> str:
-        market_info = self._markets_info[market]
-        price_rounded = util.round_to_tick(price, market_info.price_increment)
-        size_rounded = util.round_to_tick(size, market_info.size_increment)
-        if size_rounded < market_info.min_provide_size:
-            logger.warn(f'Rounded sell size for {market} is {size_rounded}, which is less than the minimum size')
+            logger.error(f'Could not place limit {"buy" if is_buy else "sell"} order for {market}: {e}')
             return ''
-        try:
-            self._connector_rest.sell_limit(market, price_rounded, size_rounded)
-        except Exception as e:
-            logger.error(f'Could not place limit sell order for {market}: {e}')
 
     def cancel_order(self, order_id: str):
         try:
