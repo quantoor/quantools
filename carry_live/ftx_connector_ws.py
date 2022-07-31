@@ -41,4 +41,4 @@ class FtxConnectorWs:
         if perp_ticker is None or fut_ticker is None:
             return
 
-        self.process_ticker_cb(fut, perp_ticker, fut_ticker)
+        self.process_ticker_cb(coin, perp_ticker, fut_ticker)
