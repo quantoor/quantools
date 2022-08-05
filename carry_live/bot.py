@@ -37,15 +37,22 @@ class CarryBot:
             self._process_ticker(tickerCombo)
 
     def _process_ticker(self, tickerCombo: TickerCombo) -> None:
+        coin = tickerCombo.coin
         perp_price = tickerCombo.perp_ticker.mark
         fut_price = tickerCombo.fut_ticker.mark
         basis = (perp_price - fut_price) / perp_price * 100
 
         if abs(basis) > 1:
-            print(f'{tickerCombo.coin} basis: {round(basis, 2)}%')
+            print(f'{coin} basis: {round(basis, 2)}%')
 
-        # perp_symbol = util.get_perp_symbol(coin)
-        # fut_symbol = util.get_future_symbol(coin, self._expiry)
+        perp_symbol = util.get_perp_symbol(coin)
+        fut_symbol = util.get_future_symbol(coin, self._expiry)
+
+        perp_pos = self._get_position(perp_symbol)
+        fut_pos = self._get_position(fut_symbol)
+
+        if perp_pos is not None:
+            pass
 
         # todo determine size
         # todo handle strategy
@@ -79,6 +86,12 @@ class CarryBot:
 
     def _get_positions(self):
         return self._connector_rest.get_positions()
+
+    def _get_position(self, symbol: str):
+        position = [*filter(lambda x: x.symbol == symbol, self.positions)]
+        if len(position) == 0:
+            return None
+        return position[0]
 
 
 if __name__ == '__main__':

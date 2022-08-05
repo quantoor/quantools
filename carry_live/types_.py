@@ -21,10 +21,9 @@ class TickerCombo:
 
 class Position:
     def __init__(self, res: Dict[str, Any]):
-        self.future: str = res['future']
+        self.symbol: str = res['future']
         self.size: float = res['size']
         self.side: bool = res['side']
-        self.net_size: float = res['netSize']
         # todo
 
 
