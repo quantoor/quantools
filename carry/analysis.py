@@ -15,7 +15,7 @@ all_expirations = util.get_historical_expirations()
 results_by_coin = {}  # {coin : [profits]}
 results_by_expiration = {}  # {expiration: [profits]}
 
-for expiration in all_expirations:
+for expiration in all_expirations[:2]:
     path = f'{config.RESULTS_FOLDER}/{expiration}.csv'
     df = pd.read_csv(path)
     d = df.to_dict('records')

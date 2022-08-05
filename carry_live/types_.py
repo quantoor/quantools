@@ -12,6 +12,13 @@ class WsTicker:
         self.time: float = res['time']
 
 
+class TickerCombo:
+    def __init__(self, coin: str, perp_ticker: WsTicker, fut_ticker: WsTicker):
+        self.coin = coin
+        self.perp_ticker = perp_ticker
+        self.fut_ticker = fut_ticker
+
+
 class Position:
     def __init__(self, res: Dict[str, Any]):
         self.future: str = res['future']

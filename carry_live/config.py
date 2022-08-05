@@ -1,6 +1,7 @@
 from typing import List
 import json
 
+CACHE_FOLDER: str = './cache'
 API_KEY: str
 API_SECRET: str
 SUB_ACCOUNT: str

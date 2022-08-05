@@ -1,7 +1,6 @@
 from common.FtxClientRest import FtxClient
 from typing import List, Dict, Optional
 from types_ import Position, Order, MarketInfo
-from common.util import logger
 
 
 class FtxConnectorRest:
