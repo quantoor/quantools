@@ -22,20 +22,20 @@ class FtxConnectorRest:
             raise Exception(f'Result of place order is empty')
         return Order(res).id
 
-    def buy_market(self, market: str, size: float):
+    def buy_market(self, market: str, size: float) -> str:
         res = self._client.place_order(market=market, side='buy', price=0., size=size, type='market')
         if not res:
             raise Exception(f'Result of place order is empty')
-        return Order(res)
+        return Order(res).id
 
-    def sell_market(self, market: str, size: float):
+    def sell_market(self, market: str, size: float) -> str:
         res = self._client.place_order(market=market, side='sell', price=0., size=size, type='market')
         if not res:
             raise Exception(f'Result of place order is empty')
-        return Order(res)
+        return Order(res).id
 
-    def get_positions(self) -> List:
-        # filter only positions with size different from 0
+    def get_positions(self) -> List[Position]:
+        # return only positions with size different from 0
         positions = filter(lambda x: x['size'] != 0., self._client.get_positions())
         return [Position(pos) for pos in [*positions]]
 

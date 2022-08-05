@@ -119,8 +119,8 @@ def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_t
     return np.array(timestamps), np.array(prices)
 
 
-def get_historical_funding(instrument: str, start_ts: int, end_ts: int, verbose: bool = False) -> Tuple[
-    np.ndarray, np.ndarray]:
+def get_historical_funding(instrument: str, start_ts: int, end_ts: int, verbose: bool = False) \
+        -> Tuple[np.ndarray, np.ndarray]:
     if verbose:
         print(f'downloading historical funding rate of {instrument}...', end='')
 

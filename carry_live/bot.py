@@ -2,8 +2,8 @@ from common import util
 import numpy as np
 from ftx_connector_rest import FtxConnectorRest
 from ftx_connector_ws import FtxConnectorWs
-from typing import List
-from types_ import WsTicker, TickerCombo
+from typing import List, Optional
+from types_ import Position, TickerCombo
 import config
 from common.util import logger
 
@@ -26,12 +26,12 @@ class CarryBot:
 
         util.create_folder(config.CACHE_FOLDER)
 
-    def start(self, coins: List[str], expiry: str):
+    def start(self, coins: List[str], expiry: str) -> None:
         self._expiry = expiry
         self._connector_ws.subscribe(coins, expiry)
         self._connector_ws.listen_to_tickers(config.REFRESH_TIME)
 
-    def _process_tickers(self, tickers: List[TickerCombo]):
+    def _process_tickers(self, tickers: List[TickerCombo]) -> None:
         self.positions = self._get_positions()
         for tickerCombo in tickers:
             self._process_ticker(tickerCombo)
@@ -78,16 +78,16 @@ class CarryBot:
             logger.error(f'Could not place limit {"buy" if is_buy else "sell"} order for {market}: {e}')
             return ''
 
-    def _cancel_order(self, order_id: str):
+    def _cancel_order(self, order_id: str) -> None:
         try:
             self._connector_rest.cancel_order(order_id)
         except Exception as e:
             logger.error(f'Could not cancel order id {order_id}: {e}')
 
-    def _get_positions(self):
+    def _get_positions(self) -> List[Position]:
         return self._connector_rest.get_positions()
 
-    def _get_position(self, symbol: str):
+    def _get_position(self, symbol: str) -> Optional[Position]:
         position = [*filter(lambda x: x.symbol == symbol, self.positions)]
         if len(position) == 0:
             return None
