@@ -53,13 +53,13 @@ class Account:
         elif self.is_trade_on() and abs(self._basis - self._last_open_basis) > 5:
             self.close_trade()
             self._last_open_basis = 0
-            self._current_open_threshold = self._basis + 1
+            self._current_open_threshold = abs(self._basis) + 1
 
         # check if there is a trade to open
         elif abs(self._basis) >= self._current_open_threshold:
             self.open_trade()
-            self._current_open_threshold = max(self._current_open_threshold + 1., self._basis)
-            self._last_open_basis = self._basis
+            self._current_open_threshold = max(self._current_open_threshold + 1., abs(self._basis))
+            self._last_open_basis = abs(self._basis)
 
         # compute funding
         self._funding_rate = funding_rate
