@@ -60,16 +60,36 @@ class MarketInfo:
 class Cache:
     def __init__(self, path: str):
         self._path: str = path
+        self.coin: str = ''
         self.last_open_basis: float = 0.
         self.current_open_threshold: float = 0.
+        self.perp_price: float = 0.
+        self.perp_size: float = 0.
+        self.fut_price: float = 0.
+        self.fut_size: float = 0.
 
         if util.file_exists(path):
             with open(self._path, 'r') as f:
                 data = json.load(f)
+                self.coin = data['coin']
                 self.last_open_basis = data['last_open_basis']
                 self.current_open_threshold = data['current_open_threshold']
+                self.perp_price = data['perp_price']
+                self.perp_size = data['perp_size']
+                self.fut_price = data['fut_price']
+                self.fut_size = data['fut_size']
 
     def write(self):
         with open(self._path, 'w') as f:
-            f.write(json.dumps(
-                {"last_open_basis": self.last_open_basis, "current_open_threshold": self.current_open_threshold}))
+            f.write(json.dumps(self.get_dict()))
+
+    def get_dict(self):
+        return {
+            "coin": self.coin,
+            "last_open_basis": self.last_open_basis,
+            "current_open_threshold": self.current_open_threshold,
+            "perp_price": self.perp_price,
+            "perp_size": self.perp_size,
+            "fut_price": self.fut_price,
+            "fut_size": self.fut_size
+        }

@@ -22,7 +22,7 @@ class CarryBot:
         self._connector_ws.process_tickers_cb = self._process_tickers
         self._expiry: str = ''
         self._markets_info = self._connector_rest.get_markets_info()
-        self.positions = None
+        self._positions = None
 
         util.create_folder(config.CACHE_FOLDER)
 
@@ -34,7 +34,7 @@ class CarryBot:
 
     def _process_tickers(self, tickers: List[TickerCombo]) -> None:
         logger.info('Process tickers')
-        self.positions = self._get_positions()
+        self._positions = self._get_positions()
         for tickerCombo in tickers:
             self._process_ticker(tickerCombo)
 
@@ -49,26 +49,37 @@ class CarryBot:
         is_trade_on = self._is_trade_on(coin)
         if is_trade_on and abs(basis) < 0.1:
             if self._close_trade(tickerCombo):
-                logger.info()
+                self._positions = self._get_positions()
+                logger.info('')
             else:
-                logger.warn()
+                logger.warning('')
 
         elif is_trade_on and abs(basis - cache.last_open_basis) > 5:
             if self._close_trade(tickerCombo):
                 cache.last_open_basis = 0.
                 cache.current_open_threshold = abs(basis)
-                logger.info()
+                self._positions = self._get_positions()
+                logger.info('')
             else:
-                logger.warn()
+                logger.warning('')
 
         elif abs(basis) > cache.current_open_threshold:
             if self._open_trade(tickerCombo):
                 cache.last_open_basis = abs(basis)
                 cache.current_open_threshold = max(basis, cache.current_open_threshold + 1)
-                logger.info()
+                self._positions = self._get_positions()
+                logger.info('')
             else:
-                logger.warn()
+                logger.warning('')
 
+        # todo refactor this
+        cache.coin = coin
+        cache.perp_price = perp_price
+        perp_pos = self._get_position(util.get_perp_symbol(coin))
+        cache.perp_size = None if perp_pos is None else perp_pos.size
+        cache.fut_price = fut_price
+        fut_pos = self._get_position(util.get_future_symbol(coin, self._expiry))
+        cache.fut_size = None if fut_pos is None else fut_pos.size
         cache.write()
 
     def _is_trade_on(self, coin: str) -> bool:
@@ -122,7 +133,7 @@ class CarryBot:
         return self._connector_rest.get_positions()
 
     def _get_position(self, symbol: str) -> Optional[Position]:
-        position = [*filter(lambda x: x.symbol == symbol, self.positions)]
+        position = [*filter(lambda x: x.symbol == symbol, self._positions)]
         if len(position) == 0:
             return None
         return position[0]
