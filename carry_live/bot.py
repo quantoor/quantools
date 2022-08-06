@@ -3,7 +3,7 @@ import numpy as np
 from ftx_connector_rest import FtxConnectorRest
 from ftx_connector_ws import FtxConnectorWs
 from typing import List, Optional
-from types_ import Position, TickerCombo
+from types_ import Position, TickerCombo, Cache
 import config
 from common.util import logger
 
@@ -42,18 +42,34 @@ class CarryBot:
         fut_price = tickerCombo.fut_ticker.mark
         basis = (perp_price - fut_price) / perp_price * 100
 
-        if abs(basis) > 1:
-            print(f'{coin} basis: {round(basis, 2)}%')
+        cache = Cache(f'{config.CACHE_FOLDER}/{coin}.json')
 
+        is_trade_on = self._is_trade_on(coin)
+        if is_trade_on and abs(basis) < 0.1:
+            self._close_trade(tickerCombo)
+
+        elif is_trade_on and abs(basis - cache.last_open_basis) > 5:
+            self._close_trade(tickerCombo)
+            cache.last_open_basis = 0.
+            cache.current_open_threshold = abs(basis)
+
+        elif abs(basis) > cache.current_open_threshold:
+            self._open_trade(tickerCombo)
+            cache.last_open_basis = abs(basis)
+            cache.current_open_threshold = max(basis, cache.current_open_threshold + 1)
+
+        cache.write()
+
+    def _is_trade_on(self, coin: str) -> bool:
         perp_symbol = util.get_perp_symbol(coin)
         fut_symbol = util.get_future_symbol(coin, self._expiry)
 
         perp_pos = self._get_position(perp_symbol)
         fut_pos = self._get_position(fut_symbol)
 
-        if perp_pos is not None:
-            pass
+        return perp_pos is not None or fut_pos is not None
 
+    def _open_trade(self, tickerCombo: TickerCombo):
         # todo determine size
         # todo handle strategy
         # buy_id = self.place_order_limit(perp_symbol, 0.8 * perp_price, 0.001, True)
@@ -61,6 +77,10 @@ class CarryBot:
         #     sell_id = self.place_order_limit(fut_symbol, 1.2 * fut_price, 0.001, False)
         #     if not sell_id:
         #         self.cancel_order(buy_id)
+        pass
+
+    def _close_trade(self, tickerCombo: TickerCombo):
+        pass
 
     def _place_order_limit(self, market: str, price: float, size: float, is_buy: bool) -> str:
         market_info = self._markets_info[market]
@@ -77,6 +97,9 @@ class CarryBot:
         except Exception as e:
             logger.error(f'Could not place limit {"buy" if is_buy else "sell"} order for {market}: {e}')
             return ''
+
+    def _cancel_orders(self) -> None:
+        self._connector_rest.cancel_orders()
 
     def _cancel_order(self, order_id: str) -> None:
         try:

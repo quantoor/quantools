@@ -1,4 +1,6 @@
 from typing import Dict, Any
+import json
+from common import util
 
 
 class WsTicker:
@@ -53,3 +55,21 @@ class MarketInfo:
         self.type: str = res['type']
         self.future_type: str = res['futureType']
         self.underlying: str = res['underlying']
+
+
+class Cache:
+    def __init__(self, path: str):
+        self._path: str = path
+        self.last_open_basis: float = 0.
+        self.current_open_threshold: float = 0.
+
+        if util.file_exists(path):
+            with open(self._path, 'r') as f:
+                data = json.load(f)
+                self.last_open_basis = data['last_open_basis']
+                self.current_open_threshold = data['current_open_threshold']
+
+    def write(self):
+        with open(self._path, 'w') as f:
+            f.write(json.dumps(
+                {"last_open_basis": self.last_open_basis, "current_open_threshold": self.current_open_threshold}))
