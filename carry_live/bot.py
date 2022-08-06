@@ -2,7 +2,7 @@ from common import util
 import numpy as np
 from ftx_connector import FtxConnectorRest, FtxConnectorWs
 from typing import List, Optional
-from types_ import Position, TickerCombo, Cache
+from types_ import *
 import config
 from common.logger import logger
 
@@ -102,21 +102,21 @@ class CarryBot:
     def _close_trade(self, tickerCombo: TickerCombo) -> bool:
         pass
 
-    def _place_order_limit(self, market: str, price: float, size: float, is_buy: bool) -> str:
-        market_info = self._markets_info[market]
-        price_rounded = util.round_to_tick(price, market_info.price_increment)
-        size_rounded = util.round_to_tick(size, market_info.size_increment)
-        if size_rounded < market_info.min_provide_size:
-            logger.warn(f'Rounded buy size for {market} is {size_rounded}, which is less than the minimum size')
-            return ''
+    def _place_order_limit(self, order: LimitOrder) -> Optional[str]:
+        market_info = self._markets_info[order.symbol]
+        price_rounded = util.round_to_tick(order.price, market_info.price_increment)
+        size_rounded = util.round_to_tick(order.size, market_info.size_increment)
         try:
-            if is_buy:
-                return self._connector_rest.buy_limit(market, price_rounded, size_rounded)
+            if size_rounded < market_info.min_provide_size:
+                raise Exception(
+                    f'rounded size is {size_rounded}, which is less than the min size {market_info.min_provide_size}')
+            if order.is_buy:
+                return self._connector_rest.buy_limit(order.symbol, price_rounded, size_rounded)
             else:
-                return self._connector_rest.sell_limit(market, price_rounded, size_rounded)
+                return self._connector_rest.sell_limit(order.symbol, price_rounded, size_rounded)
         except Exception as e:
-            logger.error(f'Could not place limit {"buy" if is_buy else "sell"} order for {market}: {e}')
-            return ''
+            logger.error(f'Could not place limit order {order}: {e}')
+            return None
 
     def _cancel_orders(self) -> None:
         self._connector_rest.cancel_orders()

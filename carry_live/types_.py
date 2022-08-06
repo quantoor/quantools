@@ -5,6 +5,8 @@ from common.logger import logger
 
 
 class WsTicker:
+    """Class to parse FTX websocket"""
+
     def __init__(self, res: Dict[str, float]):
         self.bid: float = res['bid']
         self.ask: float = res['ask']
@@ -23,6 +25,8 @@ class TickerCombo:
 
 
 class Position:
+    """Class to parse FTX websocket"""
+
     def __init__(self, res: Dict[str, Any]):
         self.symbol: str = res['future']
         self.size: float = res['size']
@@ -31,6 +35,8 @@ class Position:
 
 
 class Order:
+    """Class to parse FTX websocket"""
+
     def __init__(self, res: Dict[str, Any]):
         self.id: str = str(res['id'])
         self.client_id: str = res['clientId']
@@ -46,6 +52,8 @@ class Order:
 
 
 class MarketInfo:
+    """Class to parse FTX websocket"""
+
     def __init__(self, res: Dict[str, Any]):
         self.name: str = res['name']
         self.price_increment: float = res['priceIncrement']
@@ -56,6 +64,19 @@ class MarketInfo:
         self.type: str = res['type']
         self.future_type: str = res['futureType']
         self.underlying: str = res['underlying']
+
+
+class LimitOrder:
+    """Order to be placed"""
+
+    def __init__(self, symbol: str, price: float, size: float, is_buy: bool):
+        self.symbol = symbol
+        self.price = price
+        self.size = size
+        self.is_buy = is_buy
+
+    def __str__(self):
+        return f'symbol: {self.symbol}, price: {self.price}, size: {self.size}, is_buy: {self.is_buy}'
 
 
 class Cache:
