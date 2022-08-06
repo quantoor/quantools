@@ -1,7 +1,6 @@
 from common import util
 import numpy as np
-from ftx_connector_rest import FtxConnectorRest
-from ftx_connector_ws import FtxConnectorWs
+from ftx_connector import FtxConnectorRest, FtxConnectorWs
 from typing import List, Optional
 from types_ import Position, TickerCombo, Cache
 import config

@@ -8,7 +8,7 @@ sys.path.insert(0, parentdir)
 import streamlit as st
 from common import util
 import config
-from ftx_connector_rest import FtxConnectorRest
+from ftx_connector import FtxConnectorRest
 from types_ import Cache
 import time
 import pandas as pd
