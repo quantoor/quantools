@@ -15,7 +15,7 @@ all_expirations = util.get_historical_expirations()
 results_by_coin = {}  # {coin : [profits]}
 results_by_expiration = {}  # {expiration: [profits]}
 
-for expiration in all_expirations[:2]:
+for expiration in all_expirations:
     path = f'{config.RESULTS_FOLDER}/{expiration}.csv'
     df = pd.read_csv(path)
     d = df.to_dict('records')
@@ -48,12 +48,14 @@ fig, ax = plt.subplots(figsize=(12, 6))
 fig.suptitle('Profits by coin')
 ax.set_xticklabels(data.keys(), rotation=90, fontsize=8)
 ax.boxplot(list(data.values()))
+ax.axhline(y=0, linewidth=2, color='r', linestyle='dashed')
 # ax.set_yscale('log')
 
 fig1, ax = plt.subplots(figsize=(12, 6))
 fig1.suptitle('Profits by expiration')
 ax.set_xticklabels(results_by_expiration.keys(), rotation=45, fontsize=8)
 ax.boxplot(list(results_by_expiration.values()))
+ax.axhline(y=0, linewidth=2, color='r', linestyle='dashed')
 
 tot_profit = 0.
 for i in results_by_expiration:
