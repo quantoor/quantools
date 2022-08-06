@@ -27,11 +27,13 @@ class CarryBot:
         util.create_folder(config.CACHE_FOLDER)
 
     def start(self, coins: List[str], expiry: str) -> None:
+        logger.info('Live bot running...')
         self._expiry = expiry
         self._connector_ws.subscribe(coins, expiry)
         self._connector_ws.listen_to_tickers(config.REFRESH_TIME)
 
     def _process_tickers(self, tickers: List[TickerCombo]) -> None:
+        logger.info('Process tickers')
         self.positions = self._get_positions()
         for tickerCombo in tickers:
             self._process_ticker(tickerCombo)
@@ -46,17 +48,26 @@ class CarryBot:
 
         is_trade_on = self._is_trade_on(coin)
         if is_trade_on and abs(basis) < 0.1:
-            self._close_trade(tickerCombo)
+            if self._close_trade(tickerCombo):
+                logger.info()
+            else:
+                logger.warn()
 
         elif is_trade_on and abs(basis - cache.last_open_basis) > 5:
-            self._close_trade(tickerCombo)
-            cache.last_open_basis = 0.
-            cache.current_open_threshold = abs(basis)
+            if self._close_trade(tickerCombo):
+                cache.last_open_basis = 0.
+                cache.current_open_threshold = abs(basis)
+                logger.info()
+            else:
+                logger.warn()
 
         elif abs(basis) > cache.current_open_threshold:
-            self._open_trade(tickerCombo)
-            cache.last_open_basis = abs(basis)
-            cache.current_open_threshold = max(basis, cache.current_open_threshold + 1)
+            if self._open_trade(tickerCombo):
+                cache.last_open_basis = abs(basis)
+                cache.current_open_threshold = max(basis, cache.current_open_threshold + 1)
+                logger.info()
+            else:
+                logger.warn()
 
         cache.write()
 
@@ -69,7 +80,7 @@ class CarryBot:
 
         return perp_pos is not None or fut_pos is not None
 
-    def _open_trade(self, tickerCombo: TickerCombo):
+    def _open_trade(self, tickerCombo: TickerCombo) -> bool:
         # todo determine size
         # todo handle strategy
         # buy_id = self.place_order_limit(perp_symbol, 0.8 * perp_price, 0.001, True)
@@ -79,7 +90,7 @@ class CarryBot:
         #         self.cancel_order(buy_id)
         pass
 
-    def _close_trade(self, tickerCombo: TickerCombo):
+    def _close_trade(self, tickerCombo: TickerCombo) -> bool:
         pass
 
     def _place_order_limit(self, market: str, price: float, size: float, is_buy: bool) -> str:
