@@ -12,16 +12,26 @@ from ftx_connector_rest import FtxConnectorRest
 from types_ import Cache
 import time
 import pandas as pd
-import numpy as np
+
 
 ACTIVE_FUTURES = util.get_active_futures_with_expiry()
 EXPIRY = '0930'
 COINS = [coin for coin in ACTIVE_FUTURES[EXPIRY] if coin not in config.BLACKLIST]
 
-
 # st.header('Active coins:')
 # st.subheader(COINS)
 MODES = ('Market Overview', 'Positions', 'Open Orders')
+
+# CSS to inject contained in a string
+hide_table_row_index = """
+            <style>
+            thead tr th:first-child {display:none}
+            tbody th {display:none}
+            </style>
+            """
+
+# Inject CSS with Markdown
+st.markdown(hide_table_row_index, unsafe_allow_html=True)
 
 
 def main():
@@ -54,8 +64,9 @@ def show_market_overview():
 
         df = pd.DataFrame(data)
         df['basis'] = (df['perp_price'] - df['fut_price']) / df['perp_price'] * 100
-        df.columns = ['Coin', 'LOB', 'COT', 'Perp Price', 'Perp Size', 'Fut Price', 'Fut Size', 'Basis']
+        df.columns = ['Coin', 'LOB', 'COT', 'Perp Price', 'Perp Size', 'Fut Price', 'Fut Size', 'Funding', 'Basis']
         df.drop(['LOB', 'COT', 'Perp Size', 'Fut Size'], axis=1, inplace=True)
+        df = df.reindex(['Coin', 'Perp Price', 'Fut Price', 'Basis', 'Funding'], axis=1)
         data_table.table(df)
 
         time.sleep(1)
@@ -80,8 +91,9 @@ def show_positions():
 
         df = pd.DataFrame(data)
         df['basis'] = (df['perp_price'] - df['fut_price']) / df['perp_price'] * 100
-        df.columns = ['Coin', 'LOB', 'COT', 'Perp Price', 'Perp Size', 'Fut Price', 'Fut Size', 'Basis']
+        df.columns = ['Coin', 'LOB', 'COT', 'Perp Price', 'Perp Size', 'Fut Price', 'Fut Size', 'Funding', 'Basis']
         df.drop(['Perp Price', 'Fut Price'], axis=1, inplace=True)
+        df = df.reindex(['Coin', 'Perp Size', 'Fut Size', 'Basis', 'Funding'], axis=1)
         data_table.table(df)
 
         time.sleep(1)

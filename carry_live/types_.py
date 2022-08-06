@@ -1,6 +1,7 @@
 from typing import Dict, Any
 import json
 from common import util
+from common.util import logger
 
 
 class WsTicker:
@@ -67,17 +68,22 @@ class Cache:
         self.perp_size: float = 0.
         self.fut_price: float = 0.
         self.fut_size: float = 0.
+        self.funding: float = 0.
 
         if util.file_exists(path):
-            with open(self._path, 'r') as f:
-                data = json.load(f)
-                self.coin = data['coin']
-                self.last_open_basis = data['last_open_basis']
-                self.current_open_threshold = data['current_open_threshold']
-                self.perp_price = data['perp_price']
-                self.perp_size = data['perp_size']
-                self.fut_price = data['fut_price']
-                self.fut_size = data['fut_size']
+            try:
+                with open(self._path, 'r') as f:
+                    data = json.load(f)
+                    self.coin = data['coin']
+                    self.last_open_basis = data['last_open_basis']
+                    self.current_open_threshold = data['current_open_threshold']
+                    self.perp_price = data['perp_price']
+                    self.perp_size = data['perp_size']
+                    self.fut_price = data['fut_price']
+                    self.fut_size = data['fut_size']
+                    self.funding = data['funding']
+            except Exception as e:
+                logger.error(f'Error reading cache at path {path}: {e}')
 
     def write(self):
         with open(self._path, 'w') as f:
@@ -91,5 +97,6 @@ class Cache:
             "perp_price": self.perp_price,
             "perp_size": self.perp_size,
             "fut_price": self.fut_price,
-            "fut_size": self.fut_size
+            "fut_size": self.fut_size,
+            "funding": self.funding
         }

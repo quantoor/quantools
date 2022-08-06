@@ -1,7 +1,8 @@
 from typing import List
 import json
 
-CACHE_FOLDER: str = './cache'
+CACHE_FOLDER: str
+LOG_FOLDER: str
 API_KEY: str
 API_SECRET: str
 SUB_ACCOUNT: str
@@ -11,6 +12,8 @@ TRADE_SIZE_USD: float
 
 with open('./config.json') as f:
     data = json.load(f)
+    CACHE_FOLDER = data['cache_folder']
+    LOG_FOLDER = data['log_folder']
     API_KEY = data['api_key']
     API_SECRET = data['api_secret']
     SUB_ACCOUNT = data['sub_account']
