@@ -3,7 +3,6 @@ import time
 from typing import List
 from common import util
 from types_ import WsTicker, TickerCombo
-from common.util import logger
 
 
 class FtxConnectorWs:

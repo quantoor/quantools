@@ -1,7 +1,7 @@
 from typing import Dict, Any
 import json
 from common import util
-from common.util import logger
+from common.logger import logger
 
 
 class WsTicker:

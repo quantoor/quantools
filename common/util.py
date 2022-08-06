@@ -1,19 +1,8 @@
 import datetime as dt
-import logging
 from pathlib import Path
 from typing import List, Dict, Tuple
 from common.FtxClientRest import FtxClient
 import numpy as np
-
-logger = logging.getLogger("Log")
-logger.setLevel(logging.DEBUG)
-
-# console
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
 
 
 def date_to_timestamp(year: int, month: int, day: int, hour: int) -> int:
