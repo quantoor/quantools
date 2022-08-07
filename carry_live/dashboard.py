@@ -77,7 +77,7 @@ def show_market_overview():
             fut_price = fut_ticker.mark
 
             basis = (perp_price - fut_price) / perp_price * 100
-            funding = 0.  # util.get_funding_rate_avg_24h(perp_symbol)  # todo cache this
+            funding = None  # util.get_funding_rate_avg_24h(perp_symbol)  # todo cache this
 
             market_data.append(
                 {'Coin': coin, 'Perp Price': perp_price, 'Fut Price': fut_price, 'Basis': basis, 'Funding': funding})
