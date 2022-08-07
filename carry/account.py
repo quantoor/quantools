@@ -1,5 +1,5 @@
 from common.trading import Position
-from common.util import logger
+from common.logger import logger
 import pandas as pd
 from results import CarryResults
 
@@ -49,6 +49,8 @@ class Account:
         # check if there is a trade to close
         if self.is_trade_on() and abs(self._basis) < CLOSE_THRESHOLD:
             self.close_trade()
+            self._last_open_basis = 0
+            self._current_open_threshold = 1
 
         elif self.is_trade_on() and abs(self._basis - self._last_open_basis) > 5:
             self.close_trade()

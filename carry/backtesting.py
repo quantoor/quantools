@@ -1,6 +1,8 @@
+import logging
+
 import pandas as pd
 from common import util
-from common.util import logger
+from common.logger import logger
 import numpy as np
 import datetime as dt
 import config
@@ -117,5 +119,7 @@ def live():
 
 
 if __name__ == '__main__':
-    live()
+    logger.add_console(logging.INFO)
+    expired()
+    # live()
     logger.info('Done')
