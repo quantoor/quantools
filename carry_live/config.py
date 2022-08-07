@@ -9,9 +9,12 @@ SUB_ACCOUNT: str
 BLACKLIST: List[str]
 REFRESH_TIME: float
 TRADE_SIZE_USD: float
+INIT_OPEN_THRESHOLD: float
+THRESHOLD_INCREMENT: float
 
 with open('./config.json') as f:
     data = json.load(f)
+
     CACHE_FOLDER = data['cache_folder']
     LOG_FOLDER = data['log_folder']
     API_KEY = data['api_key']
@@ -19,4 +22,8 @@ with open('./config.json') as f:
     SUB_ACCOUNT = data['sub_account']
     BLACKLIST = data['blacklist']
     REFRESH_TIME = data['refresh_time']
-    TRADE_SIZE_USD = data['trade_size_usd']
+
+    strategy = data['strategy']
+    TRADE_SIZE_USD = strategy['trade_size_usd']
+    INIT_OPEN_THRESHOLD = strategy['init_open_threshold']
+    THRESHOLD_INCREMENT = strategy['threshold_increment']

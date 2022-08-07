@@ -58,7 +58,7 @@ class FtxConnectorWs:
         self._coins: List[str] = []
         self._expiry: str = ''
         self._is_listening: bool = False
-        self.process_tickers_cb = None
+        self.receive_tickers_cb = None
 
     def subscribe(self, coins: List[str], expiry: str) -> None:
         self._coins = coins
@@ -88,5 +88,5 @@ class FtxConnectorWs:
 
                 tickers.append(TickerCombo(coin, perp_ticker, fut_ticker))
 
-            self.process_tickers_cb(tickers)
+            self.receive_tickers_cb(tickers)
             time.sleep(refresh_time)

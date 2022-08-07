@@ -20,9 +20,9 @@ class CarryBot:
     def __init__(self):
         self._connector_rest = FtxConnectorRest(config.API_KEY, config.API_SECRET, config.SUB_ACCOUNT)
         self._connector_ws = FtxConnectorWs(config.API_KEY, config.API_SECRET)
-        self._connector_ws.process_tickers_cb = self._process_tickers
-        self._expiry: str = ''
+        self._connector_ws.receive_tickers_cb = self._receive_tickers
         self._markets_info = self._connector_rest.get_markets_info()
+        self._expiry: str = ''
         self._positions = None
 
     def start(self, coins: List[str], expiry: str) -> None:
@@ -31,7 +31,7 @@ class CarryBot:
         self._connector_ws.subscribe(coins, expiry)
         self._connector_ws.listen_to_tickers(config.REFRESH_TIME)
 
-    def _process_tickers(self, tickers: List[TickerCombo]) -> None:
+    def _receive_tickers(self, tickers: List[TickerCombo]) -> None:
         logger.debug('Process tickers')
         self._update_positions()
         for tickerCombo in tickers:
@@ -43,7 +43,9 @@ class CarryBot:
         fut_price = tickerCombo.fut_ticker.mark
         basis = (perp_price - fut_price) / perp_price * 100
 
-        cache = Cache(f'{config.CACHE_FOLDER}/{coin}.json')
+        cache = Cache()
+        cache.current_open_threshold = config.INIT_OPEN_THRESHOLD
+        cache.read(f'{config.CACHE_FOLDER}/{coin}.json')
 
         is_trade_on = self._is_trade_on(coin)
 
@@ -52,7 +54,7 @@ class CarryBot:
             try:
                 self._close_combo_trade(tickerCombo)
                 cache.last_open_basis = 0.
-                cache.current_open_threshold = 1.
+                cache.current_open_threshold = config.INIT_OPEN_THRESHOLD
                 self._update_positions()
                 self._notify(f'Closed trade for {coin}', logging.INFO)
             except Exception as e:
@@ -62,7 +64,7 @@ class CarryBot:
             try:
                 self._close_combo_trade(tickerCombo)
                 cache.last_open_basis = 0.
-                cache.current_open_threshold = abs(basis) + 1.
+                cache.current_open_threshold = abs(basis) + config.THRESHOLD_INCREMENT
                 self._update_positions()
                 self._notify(f'Closed trade for {coin}', logging.INFO)
             except Exception as e:
@@ -72,22 +74,26 @@ class CarryBot:
             try:
                 self._open_combo_trade(tickerCombo)
                 cache.last_open_basis = abs(basis)
-                cache.current_open_threshold = max(basis, cache.current_open_threshold + 1)
+                cache.current_open_threshold = max(basis, cache.current_open_threshold + config.THRESHOLD_INCREMENT)
                 self._update_positions()
                 self._notify(f'Opened trade for {coin}', logging.INFO)
             except Exception as e:
                 self._notify(f'Could not open trade for {coin}: {e}', logging.WARNING)
 
         # todo refactor this
-        cache.coin = coin
-        cache.perp_price = perp_price
         perp_pos = self._get_position(util.get_perp_symbol(coin))
-        cache.perp_size = None if perp_pos is None else perp_pos.size
-        cache.fut_price = fut_price
         fut_pos = self._get_position(util.get_future_symbol(coin, self._expiry))
+        cache.perp_size = None if perp_pos is None else perp_pos.size
         cache.fut_size = None if fut_pos is None else fut_pos.size
-        cache.funding = get_funding_rate(util.get_perp_symbol(coin))
-        cache.write()
+        if cache.perp_size is not None or cache.fut_size is not None:
+            cache.coin = coin
+            cache.perp_price = perp_price
+            cache.fut_price = fut_price
+            cache.funding = get_funding_rate(util.get_perp_symbol(coin))
+            cache.write()
+        else:
+            # todo delete cache file if exists
+            pass
 
     def _is_trade_on(self, coin: str) -> bool:
         perp_symbol = util.get_perp_symbol(coin)

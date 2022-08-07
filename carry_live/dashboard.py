@@ -59,7 +59,9 @@ def show_market_overview():
             if not util.file_exists(cache_path):
                 continue
 
-            cache = Cache(cache_path)
+            # todo read market data from api
+            cache = Cache()
+            cache.read(cache_path)
             data.append(cache.get_dict())
 
         df = pd.DataFrame(data)
@@ -85,7 +87,8 @@ def show_positions():
             if not util.file_exists(cache_path):
                 continue
 
-            cache = Cache(cache_path)
+            cache = Cache()
+            cache.read(cache_path)
             if cache.perp_size or cache.fut_size:
                 data.append(cache.get_dict())
 

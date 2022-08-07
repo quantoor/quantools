@@ -80,8 +80,8 @@ class LimitOrder:
 
 
 class Cache:
-    def __init__(self, path: str):
-        self._path: str = path
+    def __init__(self):
+        self._path: str = ''
         self.coin: str = ''
         self.last_open_basis: float = 0.
         self.current_open_threshold: float = 0.
@@ -91,7 +91,9 @@ class Cache:
         self.fut_size: float = 0.
         self.funding: float = 0.
 
-        if util.file_exists(path):
+    def read(self, path: str):
+        self._path = path
+        if util.file_exists(self._path):
             try:
                 with open(self._path, 'r') as f:
                     data = json.load(f)
