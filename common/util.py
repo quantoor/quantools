@@ -131,6 +131,14 @@ def get_historical_funding(instrument: str, start_ts: int, end_ts: int, verbose:
     return np.array(timestamps), np.array(rates)
 
 
+def get_funding_rate_avg_24h(symbol: str) -> float:
+    """Return average annualized funding rate in the last 24 hours"""
+    ts = timestamp_now()
+    _, fundings = get_historical_funding(symbol, ts - 24 * 3600, ts)
+    avg = np.mean(fundings)
+    return avg * 24 * 365 * 100
+
+
 def get_all_futures_coins() -> List[str]:
     markets = client.get_markets()
     coins = set()

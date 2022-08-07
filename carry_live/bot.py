@@ -9,13 +9,6 @@ import config
 from common.logger import logger
 
 
-def get_funding_rate(symbol: str):
-    ts = util.timestamp_now()
-    _, fundings = util.get_historical_funding(symbol, ts - 24 * 3600, ts)
-    avg = np.mean(fundings)
-    return avg * 24 * 365 * 100
-
-
 class CarryBot:
     def __init__(self):
         self._connector_rest = FtxConnectorRest(config.API_KEY, config.API_SECRET, config.SUB_ACCOUNT)
@@ -89,7 +82,7 @@ class CarryBot:
             cache.coin = coin
             cache.perp_price = perp_price
             cache.fut_price = fut_price
-            cache.funding = get_funding_rate(util.get_perp_symbol(coin))
+            cache.funding = util.get_funding_rate_avg_24h(util.get_perp_symbol(coin))
             cache.write()
         else:
             # todo delete cache file if exists
