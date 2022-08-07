@@ -7,6 +7,7 @@ API_KEY: str
 API_SECRET: str
 SUB_ACCOUNT: str
 BLACKLIST: List[str]
+WHITELIST: List[str]
 REFRESH_TIME: float
 TRADE_SIZE_USD: float
 INIT_OPEN_THRESHOLD: float
@@ -20,7 +21,8 @@ with open('./config.json') as f:
     API_KEY = data['api_key']
     API_SECRET = data['api_secret']
     SUB_ACCOUNT = data['sub_account']
-    BLACKLIST = data['blacklist']
+    BLACKLIST = sorted(data['blacklist'])
+    WHITELIST = sorted(data['whitelist'])
     REFRESH_TIME = data['refresh_time']
 
     strategy = data['strategy']

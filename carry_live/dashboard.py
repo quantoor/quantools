@@ -18,12 +18,8 @@ import numpy as np
 ws_client = FtxWebsocketClient()
 connector_rest = FtxConnectorRest(config.API_KEY, config.API_SECRET, config.SUB_ACCOUNT)
 
-ACTIVE_FUTURES = util.get_active_futures_with_expiry()
 EXPIRY = '0930'
-COINS = [coin for coin in ACTIVE_FUTURES[EXPIRY] if coin not in config.BLACKLIST]
 
-# st.header('Active coins:')
-# st.subheader(COINS)
 MODES = ('Market Overview', 'Positions', 'Open Orders')
 
 # CSS to inject contained in a string
@@ -87,7 +83,7 @@ def show_market_overview():
             fut_price = fut_ticker.mark
 
             basis = (perp_price - fut_price) / perp_price * 100
-            funding = get_funding_rate(perp_symbol)  # todo cache this
+            funding = 0.#get_funding_rate(perp_symbol)  # todo cache this
 
             market_data.append(
                 {'Coin': coin, 'Perp Price': perp_price, 'Fut Price': fut_price, 'Basis': basis, 'Funding': funding})
@@ -106,7 +102,7 @@ def show_positions():
     while True:
         data = []
 
-        for coin in COINS:
+        for coin in config.WHITELIST:
             cache_path = f'{config.CACHE_FOLDER}/{coin}.json'
             if not util.file_exists(cache_path):
                 continue

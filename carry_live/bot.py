@@ -172,9 +172,5 @@ if __name__ == '__main__':
     logger.add_console()
     logger.add_file(config.LOG_FOLDER)
 
-    _active_futures = util.get_active_futures_with_expiry()
-    _expiry = '0930'
-    _coins = [coin for coin in _active_futures[_expiry] if coin not in config.BLACKLIST]
-
     bot = CarryBot()
-    bot.start(_coins, _expiry)
+    bot.start(config.WHITELIST, '0930')
