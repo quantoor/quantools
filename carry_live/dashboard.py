@@ -9,10 +9,14 @@ import streamlit as st
 from common import util
 import config
 from ftx_connector import FtxConnectorRest
-from types_ import Cache
+from common.FtxClientWs import FtxWebsocketClient
+from types_ import Cache, WsTicker, TickerCombo
 import time
 import pandas as pd
+import numpy as np
 
+ws_client = FtxWebsocketClient()
+connector_rest = FtxConnectorRest(config.API_KEY, config.API_SECRET, config.SUB_ACCOUNT)
 
 ACTIVE_FUTURES = util.get_active_futures_with_expiry()
 EXPIRY = '0930'
@@ -47,28 +51,48 @@ def main():
 
 
 def show_market_overview():
+    _active_futures = util.get_active_futures_with_expiry()
+    _expiry = '0930'
+    _coins = [coin for coin in _active_futures[_expiry] if coin not in config.BLACKLIST]
+
     st.title(MODES[0])
 
     data_table = st.empty()
-
     while True:
-        data = []
+        market_data = []  # ['Coin', 'Perp Price', 'Fut Price', 'Basis', 'Funding']
 
-        for coin in COINS:
-            cache_path = f'{config.CACHE_FOLDER}/{coin}.json'
-            if not util.file_exists(cache_path):
+        def _get_ticker(market: str):
+            res = ws_client.get_ticker(market)
+            if len(res) == 0:
+                return None
+            return WsTicker(res)
+
+        def get_funding_rate(symbol: str):
+            ts = util.timestamp_now()
+            _, fundings = util.get_historical_funding(symbol, ts - 24 * 3600, ts)
+            avg = np.mean(fundings)
+            return avg * 24 * 365 * 100
+
+        for coin in _coins:
+            perp_symbol = util.get_perp_symbol(coin)
+            fut_symbol = util.get_future_symbol(coin, _expiry)
+
+            perp_ticker = _get_ticker(perp_symbol)
+            fut_ticker = _get_ticker(fut_symbol)
+
+            if perp_ticker is None or fut_ticker is None:
                 continue
 
-            # todo read market data from api
-            cache = Cache()
-            cache.read(cache_path)
-            data.append(cache.get_dict())
+            perp_price = perp_ticker.mark
+            fut_price = fut_ticker.mark
 
-        df = pd.DataFrame(data)
-        df['basis'] = (df['perp_price'] - df['fut_price']) / df['perp_price'] * 100
-        df.columns = ['Coin', 'LOB', 'COT', 'Perp Price', 'Perp Size', 'Fut Price', 'Fut Size', 'Funding', 'Basis']
-        df.drop(['LOB', 'COT', 'Perp Size', 'Fut Size'], axis=1, inplace=True)
-        df = df.reindex(['Coin', 'Perp Price', 'Fut Price', 'Basis', 'Funding'], axis=1)
+            basis = (perp_price - fut_price) / perp_price * 100
+            funding = get_funding_rate(perp_symbol)  # todo cache this
+
+            market_data.append(
+                {'Coin': coin, 'Perp Price': perp_price, 'Fut Price': fut_price, 'Basis': basis, 'Funding': funding})
+
+        df = pd.DataFrame(market_data)
         data_table.table(df)
 
         time.sleep(1)
@@ -106,7 +130,6 @@ def show_open_orders():
     st.title(MODES[2])
 
     if st.button('Cancel open orders'):
-        connector_rest = FtxConnectorRest(config.API_KEY, config.API_SECRET, config.SUB_ACCOUNT)
         connector_rest.cancel_orders()
 
 
