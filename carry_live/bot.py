@@ -1,3 +1,5 @@
+import logging
+
 from common import util
 import numpy as np
 from ftx_connector import FtxConnectorRest, FtxConnectorWs
@@ -31,7 +33,7 @@ class CarryBot:
 
     def _process_tickers(self, tickers: List[TickerCombo]) -> None:
         logger.debug('Process tickers')
-        self._positions = self._get_positions()
+        self._update_positions()
         for tickerCombo in tickers:
             self._process_ticker(tickerCombo)
 
@@ -43,31 +45,38 @@ class CarryBot:
 
         cache = Cache(f'{config.CACHE_FOLDER}/{coin}.json')
 
-        # is_trade_on = self._is_trade_on(coin)
-        # if is_trade_on and abs(basis) < 0.1:
-        #     if self._close_trade(tickerCombo):
-        #         self._positions = self._get_positions()
-        #         logger.info('')
-        #     else:
-        #         logger.warning('')
-        #
-        # elif is_trade_on and abs(basis - cache.last_open_basis) > 5:
-        #     if self._close_trade(tickerCombo):
-        #         cache.last_open_basis = 0.
-        #         cache.current_open_threshold = abs(basis)
-        #         self._positions = self._get_positions()
-        #         logger.info('')
-        #     else:
-        #         logger.warning('')
-        #
-        # elif abs(basis) > cache.current_open_threshold:
-        #     if self._open_trade(tickerCombo):
-        #         cache.last_open_basis = abs(basis)
-        #         cache.current_open_threshold = max(basis, cache.current_open_threshold + 1)
-        #         self._positions = self._get_positions()
-        #         logger.info('')
-        #     else:
-        #         logger.warning('')
+        is_trade_on = self._is_trade_on(coin)
+
+        # todo refactor this
+        if is_trade_on and abs(basis) < 0.1:
+            try:
+                self._close_combo_trade(tickerCombo)
+                cache.last_open_basis = 0.
+                cache.current_open_threshold = 1.
+                self._update_positions()
+                self._notify(f'Closed trade for {coin}', logging.INFO)
+            except Exception as e:
+                self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
+
+        elif is_trade_on and abs(basis - cache.last_open_basis) > 5:
+            try:
+                self._close_combo_trade(tickerCombo)
+                cache.last_open_basis = 0.
+                cache.current_open_threshold = abs(basis) + 1.
+                self._update_positions()
+                self._notify(f'Closed trade for {coin}', logging.INFO)
+            except Exception as e:
+                self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
+
+        elif abs(basis) > cache.current_open_threshold:
+            try:
+                self._open_combo_trade(tickerCombo)
+                cache.last_open_basis = abs(basis)
+                cache.current_open_threshold = max(basis, cache.current_open_threshold + 1)
+                self._update_positions()
+                self._notify(f'Opened trade for {coin}', logging.INFO)
+            except Exception as e:
+                self._notify(f'Could not open trade for {coin}: {e}', logging.WARNING)
 
         # todo refactor this
         cache.coin = coin
@@ -89,7 +98,7 @@ class CarryBot:
 
         return perp_pos is not None or fut_pos is not None
 
-    def _open_trade(self, tickerCombo: TickerCombo) -> bool:
+    def _open_combo_trade(self, tickerCombo: TickerCombo) -> None:
         # todo determine size
         # todo handle strategy
         # buy_id = self.place_order_limit(perp_symbol, 0.8 * perp_price, 0.001, True)
@@ -97,10 +106,10 @@ class CarryBot:
         #     sell_id = self.place_order_limit(fut_symbol, 1.2 * fut_price, 0.001, False)
         #     if not sell_id:
         #         self.cancel_order(buy_id)
-        pass
+        raise Exception(f'open trade not implemented')
 
-    def _close_trade(self, tickerCombo: TickerCombo) -> bool:
-        pass
+    def _close_combo_trade(self, tickerCombo: TickerCombo) -> None:
+        raise Exception(f'close trade not implemented')
 
     def _place_order_limit(self, order: LimitOrder) -> Optional[str]:
         market_info = self._markets_info[order.symbol]
@@ -136,6 +145,20 @@ class CarryBot:
             return None
         return position[0]
 
+    def _update_positions(self):
+        self._positions = self._get_positions()
+
+    def _notify(self, msg: str, level: int):
+        # self.telegram_bot.send(msg, level) todo
+        if level == logging.INFO:
+            logger.info(msg)
+        elif level == logging.WARNING:
+            logger.warning(msg)
+        elif level == logging.ERROR:
+            logger.error(msg)
+        else:
+            raise Exception(f'Logger level {level} not valid for notification')
+
 
 if __name__ == '__main__':
     util.create_folder(config.CACHE_FOLDER)
@@ -143,9 +166,9 @@ if __name__ == '__main__':
     logger.add_console()
     logger.add_file(config.LOG_FOLDER)
 
-    active_futures = util.get_active_futures_with_expiry()
+    _active_futures = util.get_active_futures_with_expiry()
     _expiry = '0930'
-    _coins = [coin for coin in active_futures[_expiry] if coin not in config.BLACKLIST]
+    _coins = [coin for coin in _active_futures[_expiry] if coin not in config.BLACKLIST]
 
     bot = CarryBot()
     bot.start(_coins, _expiry)
