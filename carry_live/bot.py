@@ -7,6 +7,7 @@ from typing import List, Optional
 from types_ import *
 import config
 from common.logger import logger
+from telegram_bot import tg_bot
 
 
 class CarryBot:
@@ -44,32 +45,33 @@ class CarryBot:
 
         # todo refactor this
         if is_trade_on and abs(basis) < 0.1:
+            self._notify(f'Closing trade for {coin}', logging.INFO)
             try:
                 self._close_combo_trade(tickerCombo)
                 cache.last_open_basis = 0.
                 cache.current_open_threshold = config.INIT_OPEN_THRESHOLD
                 self._update_positions()
-                self._notify(f'Closed trade for {coin}', logging.INFO)
             except Exception as e:
                 self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
 
         elif is_trade_on and abs(basis - cache.last_open_basis) > 5:
-            try:
-                self._close_combo_trade(tickerCombo)
-                cache.last_open_basis = 0.
-                cache.current_open_threshold = abs(basis) + config.THRESHOLD_INCREMENT
-                self._update_positions()
-                self._notify(f'Closed trade for {coin}', logging.INFO)
-            except Exception as e:
-                self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
+            self._notify(f'Could close trade for {coin}', logging.INFO)
+            # try:
+            #     self._close_combo_trade(tickerCombo)
+            #     cache.last_open_basis = 0.
+            #     cache.current_open_threshold = abs(basis) + config.THRESHOLD_INCREMENT
+            #     self._update_positions()
+            #     self._notify(f'Closed trade for {coin}', logging.INFO)
+            # except Exception as e:
+            #     self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
 
         elif abs(basis) > cache.current_open_threshold:
+            self._notify(f'Opening trade for {coin}', logging.INFO)
             try:
                 self._open_combo_trade(tickerCombo)
                 cache.last_open_basis = abs(basis)
                 cache.current_open_threshold = max(basis, cache.current_open_threshold + config.THRESHOLD_INCREMENT)
                 self._update_positions()
-                self._notify(f'Opened trade for {coin}', logging.INFO)
             except Exception as e:
                 self._notify(f'Could not open trade for {coin}: {e}', logging.WARNING)
 
@@ -147,8 +149,9 @@ class CarryBot:
     def _update_positions(self):
         self._positions = self._get_positions()
 
-    def _notify(self, msg: str, level: int):
-        # self.telegram_bot.send(msg, level) todo
+    @staticmethod
+    def _notify(msg: str, level: int):
+        tg_bot.send(msg, level)
         if level == logging.INFO:
             logger.info(msg)
         elif level == logging.WARNING:

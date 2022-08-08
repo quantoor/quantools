@@ -1,0 +1,21 @@
+{
+  "cache_folder": "./cache",
+  "log_folder": "./log",
+  "ftx": {
+    "api_key": "",
+    "api_secret": "",
+    "sub_account": "Main Account"
+  },
+  "telegram": {
+    "token": "",
+    "chat_id": 0
+  },
+  "blacklist": ["USDT"],
+  "whitelist": ["AVAX","COMP","WAVES","GRT","DOT","BAL","ATOM","FTM","AXS","GST","YFI"],
+  "refresh_time": 5,
+  "strategy": {
+    "trade_size_usd": 1000,
+    "init_open_threshold": 3,
+    "threshold_increment": 3
+  }
+}
