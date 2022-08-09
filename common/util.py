@@ -43,6 +43,14 @@ def get_folders_in_folder(path: str) -> List[Path]:
     return [f for f in Path(path).iterdir() if f.is_dir()]
 
 
+def delete_file(path: str) -> bool:
+    try:
+        Path(path).unlink()
+        return True
+    except:
+        return False
+
+
 client = FtxClient()  # todo refactor this
 
 

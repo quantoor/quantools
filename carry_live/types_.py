@@ -86,7 +86,7 @@ class LimitOrder:
 
 class Cache:
     def __init__(self):
-        self._path: str = ''
+        self.path: str = ''
         self.coin: str = ''
         self.last_open_basis: float = 0.
         self.current_open_threshold: float = 0.
@@ -97,10 +97,10 @@ class Cache:
         self.funding: float = 0.
 
     def read(self, path: str):
-        self._path = path
-        if util.file_exists(self._path):
+        self.path = path
+        if util.file_exists(self.path):
             try:
-                with open(self._path, 'r') as f:
+                with open(self.path, 'r') as f:
                     data = json.load(f)
                     self.coin = data['coin']
                     self.last_open_basis = data['last_open_basis']
@@ -114,7 +114,7 @@ class Cache:
                 logger.error(f'Error reading cache at path {path}: {e}')
 
     def write(self):
-        with open(self._path, 'w') as f:
+        with open(self.path, 'w') as f:
             f.write(json.dumps(self.get_dict()))
 
     def get_dict(self):

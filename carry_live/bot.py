@@ -72,8 +72,10 @@ class CarryBot:
             self.cache.funding = util.get_funding_rate_avg_24h(util.get_perp_symbol(coin))
             self.cache.write()
         else:
-            # todo delete cache file if exists
-            pass
+            # delete cache file if exists
+            if util.file_exists(self.cache.path):
+                if not util.delete_file(self.cache.path):
+                    logger.warning(f'Could not delete cache file {self.cache.path}')
 
     def _is_trade_on(self, coin: str) -> bool:
         perp_symbol = util.get_perp_symbol(coin)
