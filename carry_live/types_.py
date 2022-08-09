@@ -23,6 +23,11 @@ class TickerCombo:
         self.perp_ticker = perp_ticker
         self.fut_ticker = fut_ticker
 
+    def get_basis(self) -> float:
+        perp_price = self.perp_ticker.mark
+        fut_price = self.fut_ticker.mark
+        return (perp_price - fut_price) / perp_price * 100
+
 
 class Position:
     """Class to parse FTX websocket"""
@@ -48,7 +53,7 @@ class Order:
         self.filled_size: float = res['filledSize']
         self.remaining_size: float = res['remainingSize']
         self.created_at: str = res['createdAt']
-        self.future: str = res['future']
+        # self.future: str = res['future']
 
 
 class MarketInfo:

@@ -35,57 +35,42 @@ class CarryBot:
         coin = tickerCombo.coin
         perp_price = tickerCombo.perp_ticker.mark
         fut_price = tickerCombo.fut_ticker.mark
-        basis = (perp_price - fut_price) / perp_price * 100
-
-        cache = Cache()
-        cache.current_open_threshold = config.INIT_OPEN_THRESHOLD
-        cache.read(f'{config.CACHE_FOLDER}/{coin}.json')
-
-        is_trade_on = self._is_trade_on(coin)
+        basis = tickerCombo.get_basis()
 
         # todo refactor this
-        if is_trade_on and abs(basis) < 0.1:
-            self._notify(f'Closing trade for {coin}', logging.INFO)
+        self.cache = Cache()
+        self.cache.current_open_threshold = config.INIT_OPEN_THRESHOLD
+        self.cache.read(f'{config.CACHE_FOLDER}/{coin}.json')
+
+        is_trade_on = self._is_trade_on(coin)
+        if is_trade_on and abs(basis) < 0.1:  # todo remove hardcoding
             try:
-                self._close_combo_trade(tickerCombo)
-                cache.last_open_basis = 0.
-                cache.current_open_threshold = config.INIT_OPEN_THRESHOLD
-                self._update_positions()
+                if self._close_combo_trade(tickerCombo):
+                    self._notify(f'Closed trade for {coin}', logging.INFO)
             except Exception as e:
                 self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
 
-        elif is_trade_on and abs(basis - cache.last_open_basis) > 5:
+        elif is_trade_on and abs(basis - self.cache.last_open_basis) > 5:  # todo remove hardcoding
             self._notify(f'Could close trade for {coin}', logging.INFO)
-            # try:
-            #     self._close_combo_trade(tickerCombo)
-            #     cache.last_open_basis = 0.
-            #     cache.current_open_threshold = abs(basis) + config.THRESHOLD_INCREMENT
-            #     self._update_positions()
-            #     self._notify(f'Closed trade for {coin}', logging.INFO)
-            # except Exception as e:
-            #     self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
 
-        elif abs(basis) > cache.current_open_threshold:
-            self._notify(f'Opening trade for {coin}', logging.INFO)
+        elif abs(basis) > self.cache.current_open_threshold:
             try:
-                self._open_combo_trade(tickerCombo)
-                cache.last_open_basis = abs(basis)
-                cache.current_open_threshold = max(basis, cache.current_open_threshold + config.THRESHOLD_INCREMENT)
-                self._update_positions()
+                if self._open_combo_trade(tickerCombo):
+                    self._notify(f'Opened trade for {coin}', logging.INFO)
             except Exception as e:
                 self._notify(f'Could not open trade for {coin}: {e}', logging.WARNING)
 
         # todo refactor this
         perp_pos = self._get_position(util.get_perp_symbol(coin))
         fut_pos = self._get_position(util.get_future_symbol(coin, self._expiry))
-        cache.perp_size = None if perp_pos is None else perp_pos.size
-        cache.fut_size = None if fut_pos is None else fut_pos.size
-        if cache.perp_size is not None or cache.fut_size is not None:
-            cache.coin = coin
-            cache.perp_price = perp_price
-            cache.fut_price = fut_price
-            cache.funding = util.get_funding_rate_avg_24h(util.get_perp_symbol(coin))
-            cache.write()
+        self.cache.perp_size = None if perp_pos is None else perp_pos.size
+        self.cache.fut_size = None if fut_pos is None else fut_pos.size
+        if self.cache.perp_size is not None or self.cache.fut_size is not None:
+            self.cache.coin = coin
+            self.cache.perp_price = perp_price
+            self.cache.fut_price = fut_price
+            self.cache.funding = util.get_funding_rate_avg_24h(util.get_perp_symbol(coin))
+            self.cache.write()
         else:
             # todo delete cache file if exists
             pass
@@ -99,20 +84,53 @@ class CarryBot:
 
         return perp_pos is not None or fut_pos is not None
 
-    def _open_combo_trade(self, tickerCombo: TickerCombo) -> None:
-        # todo determine size
-        # todo handle strategy
-        # buy_id = self.place_order_limit(perp_symbol, 0.8 * perp_price, 0.001, True)
-        # if buy_id:
-        #     sell_id = self.place_order_limit(fut_symbol, 1.2 * fut_price, 0.001, False)
-        #     if not sell_id:
-        #         self.cancel_order(buy_id)
-        raise Exception(f'open trade not implemented')
+    def _open_combo_trade(self, tickerCombo: TickerCombo) -> bool:
+        perp_symbol = util.get_perp_symbol(tickerCombo.coin)
+        fut_symbol = util.get_future_symbol(tickerCombo.coin, self._expiry)
 
-    def _close_combo_trade(self, tickerCombo: TickerCombo) -> None:
+        perp_ticker = tickerCombo.perp_ticker
+        fut_ticker = tickerCombo.fut_ticker
+
+        basis = tickerCombo.get_basis()
+
+        # check if there are already open orders
+        open_orders = self._connector_rest.get_open_orders()
+        for order in open_orders:
+            if order.market in [perp_symbol, fut_symbol]:
+                return False
+
+        offset = 1.
+
+        if basis > 0:
+            # sell perp, buy future
+            size = perp_ticker.mark / config.TRADE_SIZE_USD
+            ask_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.ask * offset, size=size, is_buy=False)
+            bid_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.bid / offset, size=size, is_buy=True)
+        else:
+            # sell future, buy perp
+            size = fut_ticker.mark / config.TRADE_SIZE_USD
+            ask_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.ask * offset, size=size, is_buy=False)
+            bid_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.bid / offset, size=size, is_buy=True)
+
+        order_id = self._place_order_limit(bid_order)
+        try:
+            self._place_order_limit(ask_order)
+        except Exception as e:
+            self._connector_rest.cancel_order(order_id)
+            raise Exception(str(e))
+
+        self.cache.last_open_basis = abs(basis)
+        self.cache.current_open_threshold = max(basis, self.cache.current_open_threshold + config.THRESHOLD_INCREMENT)
+        self._update_positions()
+        return True
+
+    def _close_combo_trade(self, tickerCombo: TickerCombo) -> bool:
+        # self.cache.last_open_basis = 0.
+        # self.cache.current_open_threshold = config.INIT_OPEN_THRESHOLD
+        # self._update_positions()
         raise Exception(f'close trade not implemented')
 
-    def _place_order_limit(self, order: LimitOrder) -> Optional[str]:
+    def _place_order_limit(self, order: LimitOrder) -> str:
         market_info = self._markets_info[order.symbol]
         price_rounded = util.round_to_tick(order.price, market_info.price_increment)
         size_rounded = util.round_to_tick(order.size, market_info.size_increment)
@@ -125,8 +143,7 @@ class CarryBot:
             else:
                 return self._connector_rest.sell_limit(order.symbol, price_rounded, size_rounded)
         except Exception as e:
-            logger.error(f'Could not place limit order {order}: {e}')
-            return None
+            raise Exception(f'could not place limit order {order}: {e}')
 
     def _cancel_orders(self) -> None:
         self._connector_rest.cancel_orders()
@@ -167,6 +184,5 @@ if __name__ == '__main__':
     util.create_folder(config.LOG_FOLDER)
     logger.add_console()
     logger.add_file(config.LOG_FOLDER)
-
     bot = CarryBot()
     bot.start(config.WHITELIST, '0930')
