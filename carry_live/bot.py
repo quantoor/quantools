@@ -44,21 +44,23 @@ class CarryBot:
 
         is_trade_on = self._is_trade_on(coin)
         if is_trade_on and abs(basis) < 0.1:  # todo remove hardcoding
-            try:
-                if self._close_combo_trade(tickerCombo):
-                    self._notify(f'Closed trade for {coin}', logging.INFO)
-            except Exception as e:
-                self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
+            self._notify(f'{coin} basis is less than 0.1', logging.INFO)
+            # try:
+            #     if self._close_combo_trade(tickerCombo):
+            #         self._notify(f'Closed trade for {coin}', logging.INFO)
+            # except Exception as e:
+            #     self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
 
         elif is_trade_on and abs(basis - self.cache.last_open_basis) > 5:  # todo remove hardcoding
-            self._notify(f'Could close trade for {coin}', logging.INFO)
+            self._notify(f'{coin} basis has decreased more than 5 points', logging.INFO)
 
         elif abs(basis) > self.cache.current_open_threshold:
-            try:
-                if self._open_combo_trade(tickerCombo):
-                    self._notify(f'Opened trade for {coin}', logging.INFO)
-            except Exception as e:
-                self._notify(f'Could not open trade for {coin}: {e}', logging.WARNING)
+            self._notify(f'Could open trade for {coin}', logging.INFO)
+            # try:
+            #     if self._open_combo_trade(tickerCombo):
+            #         self._notify(f'Opened trade for {coin}', logging.INFO)
+            # except Exception as e:
+            #     self._notify(f'Could not open trade for {coin}: {e}', logging.WARNING)
 
         # todo refactor this
         perp_pos = self._get_position(util.get_perp_symbol(coin))

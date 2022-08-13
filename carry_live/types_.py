@@ -33,7 +33,7 @@ class Position:
     def __init__(self, res: Dict[str, Any]):
         self.symbol: str = res['future']
         self.size: float = res['size']
-        self.side: bool = res['side']
+        self.is_long: bool = res['side'] == 'buy'
         # todo
 
 
