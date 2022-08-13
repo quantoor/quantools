@@ -51,8 +51,8 @@ class CarryBot:
             # except Exception as e:
             #     self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
 
-        elif is_trade_on and abs(basis - self.cache.last_open_basis) > 5:  # todo remove hardcoding
-            self._notify(f'{coin} basis has decreased more than 5 points', logging.INFO)
+        elif is_trade_on and abs(abs(basis) - self.cache.last_open_basis) > 5:  # todo remove hardcoding
+            self._notify(f'{coin} basis is {abs(basis)} and has decreased more than 5 points', logging.INFO)
 
         elif abs(basis) > self.cache.current_open_threshold:
             self._notify(f'Could open trade for {coin}', logging.INFO)
