@@ -53,7 +53,7 @@ class Account:
             self._last_open_basis = 0
             self._current_open_threshold = 1
 
-        elif self.is_trade_on() and abs(self._basis - self._last_open_basis) > 5:
+        elif self.is_trade_on() and abs(abs(self._basis) - self._last_open_basis) > 5:
             self.close_trade()
             self._last_open_basis = 0
             self._current_open_threshold = abs(self._basis) + 1
