@@ -1,5 +1,4 @@
 import logging
-
 import pandas as pd
 from common import util
 from common.logger import logger
@@ -23,10 +22,8 @@ class CarryBacktesting:
         expired_futures = util.get_expired_futures()
         active_futures = util.get_active_futures_with_expiry()
         all_futures = expired_futures | active_futures
+        # todo spot_markets = util.get_all_spot_markets()
 
-        # spot_markets = util.get_all_spot_markets()
-
-        # todo multithread
         for expiry in expiries:
             results = list()
 
@@ -109,7 +106,7 @@ class CarryBacktesting:
 def expired():
     all_expiries = util.get_historical_expirations()
     c = CarryBacktesting()
-    c.backtest_multi(all_expiries, 3600, use_cache=True, overwrite_results=True)
+    c.backtest_multi(all_expiries, 3600, use_cache=True, overwrite_results=False)
 
 
 def live():

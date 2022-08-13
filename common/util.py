@@ -244,6 +244,10 @@ def round_to_tick(price: float, tick: float) -> float:
     return round(price / tick) * tick
 
 
+def get_basis(perp_price: float, fut_price: float) -> float:
+    return (fut_price - perp_price) / perp_price * 100
+
+
 if __name__ == '__main__':
     get_all_spot_symbols()
     print(get_historical_expirations())

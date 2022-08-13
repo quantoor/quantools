@@ -1,5 +1,6 @@
 from common.trading import Position
 from common.logger import logger
+from common import util
 import pandas as pd
 from results import CarryResults
 
@@ -44,7 +45,7 @@ class Account:
         self._spot_price = spot_price
         self._perp_price = perp_price
         self._fut_price = fut_price
-        self._basis = (perp_price - fut_price) / perp_price * 100  # todo spot price
+        self._basis = util.get_basis(perp_price, fut_price)  # todo spot price
 
         # check if there is a trade to close
         if self.is_trade_on() and abs(self._basis) < CLOSE_THRESHOLD:
@@ -100,15 +101,15 @@ class Account:
         perp_amount = TRADE_AMOUNT / self._perp_price
 
         if self._basis > 0:
-            # sell perp, buy futures
-            self._perp_position.update(self._perp_price, -perp_amount)
-            fut_amount = perp_amount
-            self._fut_position.update(self._fut_price, fut_amount)
-        else:
             # buy perp, sell futures
             self._perp_position.update(self._perp_price, perp_amount)
             fut_amount = perp_amount
             self._fut_position.update(self._fut_price, -fut_amount)
+        else:
+            # sell perp, buy futures
+            self._perp_position.update(self._perp_price, -perp_amount)
+            fut_amount = perp_amount
+            self._fut_position.update(self._fut_price, fut_amount)
 
         self._trades_open[self._date] = self._basis
 

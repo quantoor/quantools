@@ -24,9 +24,7 @@ class TickerCombo:
         self.fut_ticker = fut_ticker
 
     def get_basis(self) -> float:
-        perp_price = self.perp_ticker.mark
-        fut_price = self.fut_ticker.mark
-        return (perp_price - fut_price) / perp_price * 100
+        return util.get_basis(self.perp_ticker.mark, self.fut_ticker.mark)
 
 
 class Position:
