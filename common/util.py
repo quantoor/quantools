@@ -177,7 +177,7 @@ def get_active_futures_with_expiry() -> Dict[str, List[str]]:
     return expiries_dict
 
 
-def get_expired_futures() -> Dict[str, List[str]]:
+def get_expired_future_symbols() -> Dict[str, List[str]]:
     """
     Get expired futures. Returns: Dictionary of expiries to list of coins.
     """
@@ -221,7 +221,7 @@ def get_expiration_ts_from_str(expiration: str) -> int:
 
 
 def get_historical_expirations(start_year: int = 2020) -> List[str]:
-    expirations = list(get_expired_futures().keys())
+    expirations = list(get_expired_future_symbols().keys())
     return [i for i in expirations if get_expiration_date_from_str(i).year >= start_year]
 
 
@@ -246,14 +246,3 @@ def round_to_tick(price: float, tick: float) -> float:
 
 def get_basis(perp_price: float, fut_price: float) -> float:
     return (fut_price - perp_price) / perp_price * 100
-
-
-if __name__ == '__main__':
-    get_all_spot_symbols()
-    print(get_historical_expirations())
-    # start_ts = 0
-    # end_ts = date_to_timestamp(2022, 6, 24, 0)
-    #
-    # res = get_historical_prices('BTC-0624', 3600, start_ts, end_ts)
-    # print(len(res[0]), len(res[1]))
-    # timestamps, perp_prices, fut_prices = get_historical_prices_carry('BTC-0624', 3600)

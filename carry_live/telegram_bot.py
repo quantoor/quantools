@@ -24,16 +24,16 @@ class CarryTelegramBot:
 
     def _enough_time_passed(self, msg: str) -> bool:
         """Avoid sending the same message to frequently"""
-        if msg not in self._msg_cache:
-            self._msg_cache[msg] = time.time()
-            return True
+        time_now = time.time()
+        keys_to_delete = [key for key, sent_time in self._msg_cache.items() if (time_now - sent_time) > 1800]
+        for key in keys_to_delete:
+            del self._msg_cache[key]
+
+        if msg in self._msg_cache:
+            return False
         else:
-            last_time_sent = self._msg_cache[msg]
-            time_now = time.time()
-            enough_time_passed = (time_now - last_time_sent) > 600
-            if enough_time_passed:
-                self._msg_cache[msg] = time_now
-            return enough_time_passed
+            self._msg_cache[msg] = time_now
+            return True
 
 
 tg_bot = CarryTelegramBot()

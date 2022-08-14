@@ -10,7 +10,7 @@ def download(coin: str, expiry: str, resolution: int):
 
 
 coins = util.get_all_futures_coins()
-all_expired_futures = util.get_expired_futures()
+all_expired_futures = util.get_expired_future_symbols()
 expiries = util.get_historical_expirations()
 threads = []
 

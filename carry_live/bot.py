@@ -44,7 +44,7 @@ class CarryBot:
 
         is_trade_on = self._is_trade_on(coin)
         if is_trade_on and abs(basis) < 0.1:  # todo remove hardcoding
-            self._notify(f'{coin} basis is less than 0.1', logging.INFO)
+            self._notify(f'{coin} basis is {round(basis, 2)} and could close a trade', logging.INFO)
             # try:
             #     if self._close_combo_trade(tickerCombo):
             #         self._notify(f'Closed trade for {coin}', logging.INFO)
@@ -55,7 +55,7 @@ class CarryBot:
             self._notify(f'{coin} basis is {round(basis, 2)} and has decreased more than 5 points', logging.INFO)
 
         elif abs(basis) > self.cache.current_open_threshold:
-            self._notify(f'Could open trade for {coin}', logging.INFO)
+            self._notify(f'{coin} basis is {round(basis, 2)} and could open a trade', logging.INFO)
             # try:
             #     if self._open_combo_trade(tickerCombo):
             #         self._notify(f'Opened trade for {coin}', logging.INFO)

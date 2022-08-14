@@ -19,7 +19,7 @@ class CarryBacktesting:
     def backtest_multi(self, expiries: List[str], resolution: int, use_cache: bool = True,
                        overwrite_results: bool = False) -> None:
         coins = util.get_all_futures_coins()
-        expired_futures = util.get_expired_futures()
+        expired_futures = util.get_expired_future_symbols()
         active_futures = util.get_active_futures_with_expiry()
         all_futures = expired_futures | active_futures
         # todo spot_markets = util.get_all_spot_markets()
