@@ -35,7 +35,7 @@ class CarryBot:
         coin = tickerCombo.coin
         perp_price = tickerCombo.perp_ticker.mark
         fut_price = tickerCombo.fut_ticker.mark
-        basis = tickerCombo.get_basis()
+        basis, adj_basis = tickerCombo.get_basis()
 
         # todo refactor this
         self.cache = Cache()
@@ -69,8 +69,10 @@ class CarryBot:
         self.cache.fut_size = None if fut_pos is None else fut_pos.size
         if self.cache.perp_size is not None or self.cache.fut_size is not None:
             self.cache.coin = coin
-            self.cache.perp_price = perp_price
-            self.cache.fut_price = fut_price
+            # self.cache.perp_price = perp_price
+            # self.cache.fut_price = fut_price
+            self.cache.basis = basis
+            self.cache.adj_basis = adj_basis
             self.cache.funding = util.get_funding_rate_avg_24h(util.get_perp_symbol(coin))
             self.cache.write()
         else:

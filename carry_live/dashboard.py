@@ -101,10 +101,9 @@ def show_positions():
                 data.append(cache.get_dict())
 
         df = pd.DataFrame(data)
-        df['basis'] = (df['perp_price'] - df['fut_price']) / df['perp_price'] * 100
-        df.columns = ['Coin', 'LOB', 'COT', 'Perp Price', 'Perp Size', 'Fut Price', 'Fut Size', 'Funding', 'Basis']
-        df.drop(['Perp Price', 'Fut Price'], axis=1, inplace=True)
-        df = df.reindex(['Coin', 'Perp Size', 'Fut Size', 'Basis', 'Funding'], axis=1)
+        df.columns = ['Coin', 'LOB', 'COT', 'Perp Size', 'Fut Size', 'Basis', 'Adj Basis', 'Funding']
+        # df.drop(['Perp Price', 'Fut Price'], axis=1, inplace=True)
+        # df = df.reindex(['Coin', 'Perp Size', 'Fut Size', 'Basis', 'Funding'], axis=1)
         data_table.table(df)
 
         time.sleep(1)

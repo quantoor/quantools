@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 import json
 from common import util
 from common.logger import logger
@@ -23,8 +23,13 @@ class TickerCombo:
         self.perp_ticker = perp_ticker
         self.fut_ticker = fut_ticker
 
-    def get_basis(self) -> float:
-        return util.get_basis(self.perp_ticker.mark, self.fut_ticker.mark)
+    def get_basis(self) -> Tuple[float, float]:
+        basis = util.get_basis(self.perp_ticker.mark, self.fut_ticker.mark)
+        if basis > 0:
+            adj_basis = (self.fut_ticker.bid - self.perp_ticker.ask) / self.perp_ticker.mark * 100
+        else:
+            adj_basis = (self.fut_ticker.ask - self.perp_ticker.bid) / self.perp_ticker.mark * 100
+        return basis, adj_basis
 
 
 class Position:
@@ -88,10 +93,10 @@ class Cache:
         self.coin: str = ''
         self.last_open_basis: float = 0.
         self.current_open_threshold: float = 0.
-        self.perp_price: float = 0.
         self.perp_size: float = 0.
-        self.fut_price: float = 0.
         self.fut_size: float = 0.
+        self.basis: float = 0.
+        self.adj_basis: float = 0.
         self.funding: float = 0.
 
     def read(self, path: str):
@@ -103,10 +108,10 @@ class Cache:
                     self.coin = data['coin']
                     self.last_open_basis = data['last_open_basis']
                     self.current_open_threshold = data['current_open_threshold']
-                    self.perp_price = data['perp_price']
                     self.perp_size = data['perp_size']
-                    self.fut_price = data['fut_price']
                     self.fut_size = data['fut_size']
+                    self.basis = data['basis']
+                    self.adj_basis = data['adj_basis']
                     self.funding = data['funding']
             except Exception as e:
                 logger.error(f'Error reading cache at path {path}: {e}')
@@ -120,9 +125,9 @@ class Cache:
             "coin": self.coin,
             "last_open_basis": self.last_open_basis,
             "current_open_threshold": self.current_open_threshold,
-            "perp_price": self.perp_price,
             "perp_size": self.perp_size,
-            "fut_price": self.fut_price,
             "fut_size": self.fut_size,
+            "basis": self.basis,
+            "adj_basis": self.adj_basis,
             "funding": self.funding
         }
