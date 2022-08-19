@@ -7,7 +7,7 @@ from types_ import *
 import config as cfg
 import logging
 from common.logger import logger
-from telegram_bot import tg_bot
+from telegram_bot import *
 
 
 class CarryBot:
@@ -47,29 +47,35 @@ class CarryBot:
             if cfg.LIVE_TRADE:
                 try:
                     if self._close_position(tickerCombo):
-                        self._notify(f'Closed trade for {coin}', logging.INFO)
+                        self._notify(TgMsg(coin, TG_ALWAYS_NOTIFY, f'Closed trade for {coin}'), logging.INFO)
                 except Exception as e:
-                    self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
+                    self._notify(TgMsg(coin, TG_ERROR, f'Could not close trade for {coin}: {e}'), logging.ERROR)
             else:
                 self._notify(
-                    f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and could close a trade',
+                    TgMsg(coin,
+                          TG_CAN_CLOSE,
+                          f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and could close a trade'),
                     logging.INFO)
 
         elif is_trade_on and abs(abs(adj_basis_close) - self.cache.last_open_basis) > 5:  # todo remove hardcoding
             self._notify(
-                f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and has decreased more than 5 points',
+                TgMsg(coin,
+                      TG_CAN_CLOSE,
+                      f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and has decreased more than 5 points'),
                 logging.INFO)
 
         elif abs(adj_basis_open) > self.cache.current_open_threshold:
             if cfg.LIVE_TRADE:
                 try:
                     if self._open_position(tickerCombo):
-                        self._notify(f'Opened trade for {coin}', logging.INFO)
+                        self._notify(TgMsg(coin, TG_ALWAYS_NOTIFY, f'Opened trade for {coin}'), logging.INFO)
                 except Exception as e:
-                    self._notify(f'Could not open trade for {coin}: {e}', logging.WARNING)
+                    self._notify(TgMsg(coin, TG_ERROR, f'Could not open trade for {coin}: {e}'), logging.ERROR)
             else:
                 self._notify(
-                    f'{coin} basis is {round(basis, 2)} ({round(adj_basis_open, 2)}) and could open a trade',
+                    TgMsg(coin,
+                          TG_CAN_OPEN,
+                          f'{coin} basis is {round(basis, 2)} ({round(adj_basis_open, 2)}) and could open a trade'),
                     logging.INFO)
 
         # todo refactor this
@@ -215,14 +221,14 @@ class CarryBot:
         self._positions = self._get_positions()
 
     @staticmethod
-    def _notify(msg: str, level: int):
-        tg_bot.send(msg, level)
+    def _notify(tg_msg: TgMsg, level: int):
+        tg_bot.send(tg_msg, level)
         if level == logging.INFO:
-            logger.info(msg)
+            logger.info(tg_msg.msg)
         elif level == logging.WARNING:
-            logger.warning(msg)
+            logger.warning(tg_msg.msg)
         elif level == logging.ERROR:
-            logger.error(msg)
+            logger.error(tg_msg.msg)
         else:
             raise Exception(f'Logger level {level} not valid for notification')
 
