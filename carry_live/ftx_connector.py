@@ -14,13 +14,13 @@ class FtxConnectorRest:
         return {market['name']: MarketInfo(market) for market in self._client.get_markets()}
 
     def buy_limit(self, market: str, price: float, size: float) -> str:
-        res = self._client.place_order(market, 'buy', price, size, type='limit', post_only=True)
+        res = self._client.place_order(market, 'buy', price, size, type='limit', post_only=False)
         if not res:
             raise Exception(f'Result of place order is empty')
         return Order(res).id
 
     def sell_limit(self, market: str, price: float, size: float) -> str:
-        res = self._client.place_order(market, 'sell', price, size, type='limit', post_only=True)
+        res = self._client.place_order(market, 'sell', price, size, type='limit', post_only=False)
         if not res:
             raise Exception(f'Result of place order is empty')
         return Order(res).id
@@ -49,7 +49,9 @@ class FtxConnectorRest:
         self._client.cancel_orders(market_name=market)
 
     def cancel_order(self, order_id: str) -> None:
-        self._client.cancel_order(order_id)
+        res = self._client.cancel_order(order_id)
+        if res != "Order queued for cancellation":
+            raise Exception(res)
 
 
 class FtxConnectorWs:

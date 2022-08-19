@@ -112,9 +112,50 @@ class CarryBot:
             if order.market in [perp_symbol, fut_symbol]:
                 return False
 
-        offset = 1.
+        offset = 1.2
 
         if tickerCombo.is_contango:
+            # sell perp, buy future
+            size = cfg.TRADE_SIZE_USD / perp_ticker.mark
+            ask_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.bid * offset, size=size, is_buy=False)
+            bid_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.ask / offset, size=size, is_buy=True)
+        else:
+            # sell future, buy perp
+            size = cfg.TRADE_SIZE_USD / fut_ticker.mark
+            ask_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.bid * offset, size=size, is_buy=False)
+            bid_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.ask / offset, size=size, is_buy=True)
+
+        order_id = self._place_order_limit(bid_order)
+        try:
+            self._place_order_limit(ask_order)
+        except Exception as e:
+            self._connector_rest.cancel_order(order_id)
+            raise Exception(str(e))
+
+        adj_basis_open = tickerCombo.adj_basis_open
+        self.cache.last_open_basis = abs(adj_basis_open)
+        self.cache.current_open_threshold = max(adj_basis_open,
+                                                self.cache.current_open_threshold + cfg.THRESHOLD_INCREMENT)
+        self._update_positions()
+        return True
+
+    def _close_position(self, tickerCombo: TickerCombo) -> bool:
+        perp_symbol = util.get_perp_symbol(tickerCombo.coin)
+        fut_symbol = util.get_future_symbol(tickerCombo.coin, self._expiry)
+
+        perp_ticker = tickerCombo.perp_ticker
+        fut_ticker = tickerCombo.fut_ticker
+
+        # check if there are already open orders
+        open_orders = self._connector_rest.get_open_orders()
+        for order in open_orders:
+            if order.market in [perp_symbol, fut_symbol]:
+                return False
+
+        offset = 1.2
+
+        perp_pos = self._get_position(perp_symbol)
+        if perp_pos.is_long:
             # sell perp, buy future
             size = perp_ticker.mark / cfg.TRADE_SIZE_USD
             ask_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.bid * offset, size=size, is_buy=False)
@@ -132,17 +173,10 @@ class CarryBot:
             self._connector_rest.cancel_order(order_id)
             raise Exception(str(e))
 
-        basis = tickerCombo.basis
-        self.cache.last_open_basis = abs(basis)
-        self.cache.current_open_threshold = max(basis, self.cache.current_open_threshold + cfg.THRESHOLD_INCREMENT)
+        self.cache.last_open_basis = 0
+        self.cache.current_open_threshold = cfg.INIT_OPEN_THRESHOLD
         self._update_positions()
         return True
-
-    def _close_position(self, tickerCombo: TickerCombo) -> bool:
-        # self.cache.last_open_basis = 0.
-        # self.cache.current_open_threshold = config.INIT_OPEN_THRESHOLD
-        # self._update_positions()
-        raise Exception(f'close trade not implemented')
 
     def _place_order_limit(self, order: LimitOrder) -> str:
         market_info = self._markets_info[order.symbol]
