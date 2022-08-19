@@ -4,7 +4,7 @@ import numpy as np
 from ftx_connector import FtxConnectorRest, FtxConnectorWs
 from typing import List, Optional
 from types_ import *
-import config
+import config as cfg
 import logging
 from common.logger import logger
 from telegram_bot import tg_bot
@@ -12,8 +12,8 @@ from telegram_bot import tg_bot
 
 class CarryBot:
     def __init__(self):
-        self._connector_rest = FtxConnectorRest(config.API_KEY, config.API_SECRET, config.SUB_ACCOUNT)
-        self._connector_ws = FtxConnectorWs(config.API_KEY, config.API_SECRET)
+        self._connector_rest = FtxConnectorRest(cfg.API_KEY, cfg.API_SECRET, cfg.SUB_ACCOUNT)
+        self._connector_ws = FtxConnectorWs(cfg.API_KEY, cfg.API_SECRET)
         self._connector_ws.receive_tickers_cb = self._receive_tickers
         self._markets_info = self._connector_rest.get_markets_info()
         self._expiry: str = ''
@@ -23,7 +23,7 @@ class CarryBot:
         logger.info('CarryBot started')
         self._expiry = expiry
         self._connector_ws.subscribe(coins, expiry)
-        self._connector_ws.listen_to_tickers(config.REFRESH_TIME)
+        self._connector_ws.listen_to_tickers(cfg.REFRESH_TIME)
 
     def _receive_tickers(self, tickers: List[TickerCombo]) -> None:
         logger.debug('Process tickers')
@@ -37,28 +37,38 @@ class CarryBot:
 
         # todo refactor this
         self.cache = Cache()
-        self.cache.current_open_threshold = config.INIT_OPEN_THRESHOLD
-        self.cache.read(f'{config.CACHE_FOLDER}/{coin}.json')
+        self.cache.current_open_threshold = cfg.INIT_OPEN_THRESHOLD
+        self.cache.read(f'{cfg.CACHE_FOLDER}/{coin}.json')
 
         is_trade_on = self._is_trade_on(coin)
-        if is_trade_on and abs(basis) < 0.1:  # todo remove hardcoding
-            self._notify(f'{coin} basis is {round(basis, 2)} and could close a trade', logging.INFO)
-            # try:
-            #     if self._close_combo_trade(tickerCombo):
-            #         self._notify(f'Closed trade for {coin}', logging.INFO)
-            # except Exception as e:
-            #     self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
+        if is_trade_on and abs(adj_basis_close) < 0.1:  # todo remove hardcoding
+            if cfg.LIVE_TRADE:
+                try:
+                    if self._close_position(tickerCombo):
+                        self._notify(f'Closed trade for {coin}', logging.INFO)
+                except Exception as e:
+                    self._notify(f'Could not close trade for {coin}: {e}', logging.WARNING)
+            else:
+                self._notify(
+                    f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and could close a trade',
+                    logging.INFO)
 
-        elif is_trade_on and abs(abs(basis) - self.cache.last_open_basis) > 5:  # todo remove hardcoding
-            self._notify(f'{coin} basis is {round(basis, 2)} and has decreased more than 5 points', logging.INFO)
+        elif is_trade_on and abs(abs(adj_basis_close) - self.cache.last_open_basis) > 5:  # todo remove hardcoding
+            self._notify(
+                f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and has decreased more than 5 points',
+                logging.INFO)
 
-        elif abs(basis) > self.cache.current_open_threshold:
-            self._notify(f'{coin} basis is {round(basis, 2)} and could open a trade', logging.INFO)
-            # try:
-            #     if self._open_combo_trade(tickerCombo):
-            #         self._notify(f'Opened trade for {coin}', logging.INFO)
-            # except Exception as e:
-            #     self._notify(f'Could not open trade for {coin}: {e}', logging.WARNING)
+        elif abs(adj_basis_open) > self.cache.current_open_threshold:
+            if cfg.LIVE_TRADE:
+                try:
+                    if self._open_position(tickerCombo):
+                        self._notify(f'Opened trade for {coin}', logging.INFO)
+                except Exception as e:
+                    self._notify(f'Could not open trade for {coin}: {e}', logging.WARNING)
+            else:
+                self._notify(
+                    f'{coin} basis is {round(basis, 2)} ({round(adj_basis_open, 2)}) and could open a trade',
+                    logging.INFO)
 
         # todo refactor this
         perp_pos = self._get_position(util.get_perp_symbol(coin))
@@ -67,18 +77,16 @@ class CarryBot:
         self.cache.fut_size = None if fut_pos is None else fut_pos.size
         if self.cache.perp_size is not None or self.cache.fut_size is not None:
             self.cache.coin = coin
-            # self.cache.perp_price = perp_price
-            # self.cache.fut_price = fut_price
             self.cache.basis = basis
             self.cache.adj_basis_open = adj_basis_open
             self.cache.adj_basis_close = adj_basis_close
             self.cache.funding = util.get_funding_rate_avg_24h(util.get_perp_symbol(coin))
             self.cache.write()
-        else:
-            # delete cache file if exists
-            if util.file_exists(self.cache.path):
-                if not util.delete_file(self.cache.path):
-                    logger.warning(f'Could not delete cache file {self.cache.path}')
+        # else:
+        #     # delete cache file if exists
+        #     if util.file_exists(self.cache.path):
+        #         if not util.delete_file(self.cache.path):
+        #             logger.warning(f'Could not delete cache file {self.cache.path}')
 
     def _is_trade_on(self, coin: str) -> bool:
         perp_symbol = util.get_perp_symbol(coin)
@@ -89,14 +97,14 @@ class CarryBot:
 
         return perp_pos is not None or fut_pos is not None
 
-    def _open_combo_trade(self, tickerCombo: TickerCombo) -> bool:
+    def _open_position(self, tickerCombo: TickerCombo) -> bool:
         perp_symbol = util.get_perp_symbol(tickerCombo.coin)
         fut_symbol = util.get_future_symbol(tickerCombo.coin, self._expiry)
 
         perp_ticker = tickerCombo.perp_ticker
         fut_ticker = tickerCombo.fut_ticker
 
-        basis = tickerCombo.get_basis()
+        basis, _1, _2 = tickerCombo.get_basis()
 
         # check if there are already open orders
         open_orders = self._connector_rest.get_open_orders()
@@ -108,12 +116,12 @@ class CarryBot:
 
         if basis > 0:
             # sell perp, buy future
-            size = perp_ticker.mark / config.TRADE_SIZE_USD
+            size = perp_ticker.mark / cfg.TRADE_SIZE_USD
             ask_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.ask * offset, size=size, is_buy=False)
             bid_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.bid / offset, size=size, is_buy=True)
         else:
             # sell future, buy perp
-            size = fut_ticker.mark / config.TRADE_SIZE_USD
+            size = fut_ticker.mark / cfg.TRADE_SIZE_USD
             ask_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.ask * offset, size=size, is_buy=False)
             bid_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.bid / offset, size=size, is_buy=True)
 
@@ -125,11 +133,11 @@ class CarryBot:
             raise Exception(str(e))
 
         self.cache.last_open_basis = abs(basis)
-        self.cache.current_open_threshold = max(basis, self.cache.current_open_threshold + config.THRESHOLD_INCREMENT)
+        self.cache.current_open_threshold = max(basis, self.cache.current_open_threshold + cfg.THRESHOLD_INCREMENT)
         self._update_positions()
         return True
 
-    def _close_combo_trade(self, tickerCombo: TickerCombo) -> bool:
+    def _close_position(self, tickerCombo: TickerCombo) -> bool:
         # self.cache.last_open_basis = 0.
         # self.cache.current_open_threshold = config.INIT_OPEN_THRESHOLD
         # self._update_positions()
@@ -185,9 +193,9 @@ class CarryBot:
 
 
 if __name__ == '__main__':
-    util.create_folder(config.CACHE_FOLDER)
-    util.create_folder(config.LOG_FOLDER)
+    util.create_folder(cfg.CACHE_FOLDER)
+    util.create_folder(cfg.LOG_FOLDER)
     logger.add_console()
-    logger.add_file(config.LOG_FOLDER)
+    logger.add_file(cfg.LOG_FOLDER)
     bot = CarryBot()
-    bot.start(config.WHITELIST, '0930')
+    bot.start(cfg.WHITELIST, '0930')

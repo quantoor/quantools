@@ -13,6 +13,7 @@
   "blacklist": ["USDT"],
   "whitelist": ["AVAX","COMP","WAVES","GRT","DOT","BAL","ATOM","FTM","AXS","GST","YFI"],
   "refresh_time": 5,
+  "live_trade": true,
   "strategy": {
     "trade_size_usd": 1000,
     "init_open_threshold": 3,
