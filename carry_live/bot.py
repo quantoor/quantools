@@ -33,9 +33,7 @@ class CarryBot:
 
     def _process_ticker(self, tickerCombo: TickerCombo) -> None:
         coin = tickerCombo.coin
-        perp_price = tickerCombo.perp_ticker.mark
-        fut_price = tickerCombo.fut_ticker.mark
-        basis, adj_basis = tickerCombo.get_basis()
+        basis, adj_basis_open, adj_basis_close = tickerCombo.get_basis()
 
         # todo refactor this
         self.cache = Cache()
@@ -72,7 +70,8 @@ class CarryBot:
             # self.cache.perp_price = perp_price
             # self.cache.fut_price = fut_price
             self.cache.basis = basis
-            self.cache.adj_basis = adj_basis
+            self.cache.adj_basis_open = adj_basis_open
+            self.cache.adj_basis_close = adj_basis_close
             self.cache.funding = util.get_funding_rate_avg_24h(util.get_perp_symbol(coin))
             self.cache.write()
         else:
