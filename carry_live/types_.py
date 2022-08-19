@@ -23,15 +23,27 @@ class TickerCombo:
         self.perp_ticker = perp_ticker
         self.fut_ticker = fut_ticker
 
-    def get_basis(self) -> Tuple[float, float, float]:
-        basis = util.get_basis(self.perp_ticker.mark, self.fut_ticker.mark)
-        if basis > 0:
-            adj_basis_open = (self.fut_ticker.bid - self.perp_ticker.ask) / self.perp_ticker.mark * 100
-            adj_basis_close = (self.fut_ticker.ask - self.perp_ticker.bid) / self.perp_ticker.mark * 100
+        self.is_contango = fut_ticker.mark > perp_ticker.mark
+        self.basis = self._get_basis()
+        self.adj_basis_open = self._get_adj_basis_open()
+        self.adj_basis_close = self._get_adj_basis_close()
+
+    def _get_basis(self) -> float:
+        return util.get_basis(self.perp_ticker.mark, self.fut_ticker.mark)
+
+    def _get_adj_basis_open(self) -> float:
+        if self.is_contango:
+            adj_basis_open = self.fut_ticker.bid - self.perp_ticker.ask
         else:
-            adj_basis_open = (self.fut_ticker.ask - self.perp_ticker.bid) / self.perp_ticker.mark * 100
-            adj_basis_close = (self.fut_ticker.bid - self.perp_ticker.ask) / self.perp_ticker.mark * 100
-        return basis, adj_basis_open, adj_basis_close
+            adj_basis_open = self.fut_ticker.ask - self.perp_ticker.bid
+        return adj_basis_open / self.perp_ticker.mark * 100
+
+    def _get_adj_basis_close(self) -> float:
+        if self.is_contango:
+            adj_basis_close = self.fut_ticker.ask - self.perp_ticker.bid
+        else:
+            adj_basis_close = self.fut_ticker.bid - self.perp_ticker.ask
+        return adj_basis_close / self.perp_ticker.mark * 100
 
 
 class Position:

@@ -33,7 +33,9 @@ class CarryBot:
 
     def _process_ticker(self, tickerCombo: TickerCombo) -> None:
         coin = tickerCombo.coin
-        basis, adj_basis_open, adj_basis_close = tickerCombo.get_basis()
+        basis = tickerCombo.basis
+        adj_basis_open = tickerCombo.adj_basis_open
+        adj_basis_close = tickerCombo.adj_basis_close
 
         # todo refactor this
         self.cache = Cache()
@@ -104,8 +106,6 @@ class CarryBot:
         perp_ticker = tickerCombo.perp_ticker
         fut_ticker = tickerCombo.fut_ticker
 
-        basis, _1, _2 = tickerCombo.get_basis()
-
         # check if there are already open orders
         open_orders = self._connector_rest.get_open_orders()
         for order in open_orders:
@@ -114,16 +114,16 @@ class CarryBot:
 
         offset = 1.
 
-        if basis > 0:
+        if tickerCombo.is_contango:
             # sell perp, buy future
             size = perp_ticker.mark / cfg.TRADE_SIZE_USD
-            ask_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.ask * offset, size=size, is_buy=False)
-            bid_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.bid / offset, size=size, is_buy=True)
+            ask_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.bid * offset, size=size, is_buy=False)
+            bid_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.ask / offset, size=size, is_buy=True)
         else:
             # sell future, buy perp
             size = fut_ticker.mark / cfg.TRADE_SIZE_USD
-            ask_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.ask * offset, size=size, is_buy=False)
-            bid_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.bid / offset, size=size, is_buy=True)
+            ask_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.bid * offset, size=size, is_buy=False)
+            bid_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.ask / offset, size=size, is_buy=True)
 
         order_id = self._place_order_limit(bid_order)
         try:
@@ -132,6 +132,7 @@ class CarryBot:
             self._connector_rest.cancel_order(order_id)
             raise Exception(str(e))
 
+        basis = tickerCombo.basis
         self.cache.last_open_basis = abs(basis)
         self.cache.current_open_threshold = max(basis, self.cache.current_open_threshold + cfg.THRESHOLD_INCREMENT)
         self._update_positions()
