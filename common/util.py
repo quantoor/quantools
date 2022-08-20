@@ -1,7 +1,7 @@
 import datetime as dt
 from pathlib import Path
 from typing import List, Dict, Tuple
-from common.FtxClientRest import FtxClient
+from quantools.common.FtxClientRest import FtxClient
 import numpy as np
 
 
