@@ -74,10 +74,10 @@ class CarryBacktesting:
             self._backtest()
             self.account.save_results(results_path)
 
-            fig = self.account.results.get_figure(results_path)
-            fig_path = name_path + '.png'
-            fig.savefig(fig_path)
-            plt.close(fig)
+            # fig = self.account.results.get_figure(results_path)
+            # fig_path = name_path + '.png'
+            # fig.savefig(fig_path)
+            # plt.close(fig)
 
             logger.info(self.account)
 
@@ -106,7 +106,7 @@ class CarryBacktesting:
 def expired():
     all_expiries = util.get_historical_expirations()
     c = CarryBacktesting()
-    c.backtest_multi(all_expiries, 3600, use_cache=True, overwrite_results=False)
+    c.backtest_multi(all_expiries, 3600, use_cache=True, overwrite_results=True)
 
 
 def live():
@@ -120,3 +120,5 @@ if __name__ == '__main__':
     expired()
     # live()
     logger.info('Done')
+    # python -m cProfile -o out.profile .\backtesting.py
+    # snakeviz out.profile
