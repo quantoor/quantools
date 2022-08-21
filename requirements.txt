@@ -9,3 +9,4 @@ streamlit~=1.10.0
 websocket-client~=0.37.0
 scipy~=1.9.0
 ccxt~=1.91.46
+python-telegram-bot~=13.13
