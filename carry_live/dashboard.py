@@ -1,15 +1,13 @@
 import importer
 import streamlit as st
-from quantools.common import util
+from common import util
 import config
 from ftx_connector import FtxConnectorRest
-from quantools.common.FtxClientWs import FtxWebsocketClient
-from types_ import Cache, WsTicker
+from common.FtxClientWs import FtxWebsocketClient
+from classes import Cache, WsTicker
 import time
 import pandas as pd
-import numpy as np
 import asyncio
-import json
 
 ws_client = FtxWebsocketClient()
 connector_rest = FtxConnectorRest(config.API_KEY, config.API_SECRET, config.SUB_ACCOUNT)
@@ -52,7 +50,7 @@ def show_market_overview():
     st.title(MODES[0])
     loop = asyncio.new_event_loop()
     # loop.create_task(_get_funding())
-    loop.create_task(_market_overview())
+    # loop.create_task(_market_overview())
     # loop.run_forever()
 
 

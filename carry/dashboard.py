@@ -28,10 +28,8 @@ def carry_backtesting():
 with st.sidebar:
     mode = st.radio(
         "Choose Mode",
-        ("Carry Backtesting", "Options Analysis")
+        ("Carry Backtesting", "")
     )
 
 if mode == 'Carry Backtesting':
     carry_backtesting()
-elif mode == 'Options Analysis':
-    st.title('TODO')

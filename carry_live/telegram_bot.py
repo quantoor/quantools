@@ -36,7 +36,7 @@ class TgBot:
     def _enough_time_passed(self, msg: TgMsg) -> bool:
         """Avoid sending the same message to frequently"""
         time_now = time.time()
-        keys_to_delete = [key for key, sent_time in self._msg_cache.items() if (time_now - sent_time) > 60]
+        keys_to_delete = [key for key, sent_time in self._msg_cache.items() if (time_now - sent_time) > 1800]
         for key in keys_to_delete:
             del self._msg_cache[key]
 

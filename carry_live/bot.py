@@ -3,7 +3,7 @@ from common import util
 import numpy as np
 from ftx_connector import FtxConnectorRest, FtxConnectorWs
 from typing import List, Optional
-from types_ import *
+from classes import *
 import config as cfg
 import logging
 from common.logger import logger

@@ -1,6 +1,6 @@
 from common.FtxClientRest import FtxClient
 from common.FtxClientWs import FtxWebsocketClient
-from types_ import *
+from classes import *
 from common import util
 from typing import List, Dict, Optional
 import time
