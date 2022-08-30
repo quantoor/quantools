@@ -13,26 +13,14 @@ class FtxConnectorRest:
     def get_markets_info(self) -> Dict[str, MarketInfo]:
         return {market['name']: MarketInfo(market) for market in self._client.get_markets()}
 
-    def buy_limit(self, market: str, price: float, size: float) -> str:
-        res = self._client.place_order(market, 'buy', price, size, type='limit', post_only=False)
+    def place_order_limit(self, market: str, side: str, price: float, size: float) -> str:
+        res = self._client.place_order(market, side, price, size, type='limit', post_only=False)
         if not res:
             raise Exception(f'Result of place order is empty')
         return Order(res).id
 
-    def sell_limit(self, market: str, price: float, size: float) -> str:
-        res = self._client.place_order(market, 'sell', price, size, type='limit', post_only=False)
-        if not res:
-            raise Exception(f'Result of place order is empty')
-        return Order(res).id
-
-    def buy_market(self, market: str, size: float) -> str:
-        res = self._client.place_order(market=market, side='buy', price=0., size=size, type='market')
-        if not res:
-            raise Exception(f'Result of place order is empty')
-        return Order(res).id
-
-    def sell_market(self, market: str, size: float) -> str:
-        res = self._client.place_order(market=market, side='sell', price=0., size=size, type='market')
+    def place_order_market(self, market: str, side: str, size: float) -> str:
+        res = self._client.place_order(market=market, side=side, price=0., size=size, type='market')
         if not res:
             raise Exception(f'Result of place order is empty')
         return Order(res).id
@@ -88,7 +76,7 @@ class FtxConnectorWs:
                 if perp_ticker is None or fut_ticker is None:
                     continue
 
-                tickers.append(TickerCombo(coin, perp_ticker, fut_ticker))
+                tickers.append(TickerCombo(coin, self._expiry, perp_ticker, fut_ticker))
 
             self.receive_tickers_cb(tickers)
             time.sleep(refresh_time)

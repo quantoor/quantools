@@ -15,6 +15,7 @@ LIVE_TRADE: bool
 TRADE_SIZE_USD: float
 INIT_OPEN_THRESHOLD: float
 THRESHOLD_INCREMENT: float
+SPREAD_OFFSET: float
 
 with open('./config.json') as f:
     data = json.load(f)
@@ -33,6 +34,7 @@ with open('./config.json') as f:
 
     BLACKLIST = sorted(data['blacklist'])
     WHITELIST = sorted(data['whitelist'])
+    EXPIRY = data['expiry']
     REFRESH_TIME = data['refresh_time']
     LIVE_TRADE = data['live_trade']
 
@@ -40,3 +42,4 @@ with open('./config.json') as f:
     TRADE_SIZE_USD = strategy['trade_size_usd']
     INIT_OPEN_THRESHOLD = strategy['init_open_threshold']
     THRESHOLD_INCREMENT = strategy['threshold_increment']
+    SPREAD_OFFSET = strategy['spread_offset']

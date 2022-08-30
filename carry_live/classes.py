@@ -18,8 +18,9 @@ class WsTicker:
 
 
 class TickerCombo:
-    def __init__(self, coin: str, perp_ticker: WsTicker, fut_ticker: WsTicker):
+    def __init__(self, coin: str, expiry: str, perp_ticker: WsTicker, fut_ticker: WsTicker):
         self.coin = coin
+        self.expiry = expiry
         self.perp_ticker = perp_ticker
         self.fut_ticker = fut_ticker
 
