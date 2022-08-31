@@ -13,13 +13,15 @@ class FtxConnectorRest:
     def get_markets_info(self) -> Dict[str, MarketInfo]:
         return {market['name']: MarketInfo(market) for market in self._client.get_markets()}
 
-    def place_order_limit(self, market: str, side: str, price: float, size: float) -> str:
+    def place_order_limit(self, market: str, is_buy: bool, price: float, size: float) -> str:
+        side = "buy" if is_buy else "sell"
         res = self._client.place_order(market, side, price, size, type='limit', post_only=False)
         if not res:
             raise Exception(f'Result of place order is empty')
         return Order(res).id
 
-    def place_order_market(self, market: str, side: str, size: float) -> str:
+    def place_order_market(self, market: str, is_buy: bool, size: float) -> str:
+        side = "buy" if is_buy else "sell"
         res = self._client.place_order(market=market, side=side, price=0., size=size, type='market')
         if not res:
             raise Exception(f'Result of place order is empty')

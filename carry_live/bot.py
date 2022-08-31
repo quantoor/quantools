@@ -38,6 +38,7 @@ class CarryBot:
 
 class StrategyManager:
     def __init__(self):
+        self._offset = cfg.SPREAD_OFFSET
         self._positions = None
         self._cache = None
         self._rest_manager = RestManager()
@@ -50,12 +51,12 @@ class StrategyManager:
         adj_basis_close = ticker_combo.adj_basis_close
 
         # todo refactor this
-        self._cache = Cache()
+        self._cache = StrategyCache()
         self._cache.current_open_threshold = cfg.INIT_OPEN_THRESHOLD
         self._cache.read(f'{cfg.CACHE_FOLDER}/{coin}.json')
 
-        is_trade_on = self._is_position_open(coin, expiry)
-        if is_trade_on and abs(adj_basis_close) < 0.1:  # todo remove hardcoding
+        is_position_open = self._is_position_open(coin, expiry)
+        if is_position_open and abs(adj_basis_close) < 0.1:  # todo remove hardcoding
             if cfg.LIVE_TRADE:
                 try:
                     if self._close_position(ticker_combo):
@@ -69,7 +70,7 @@ class StrategyManager:
                           f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and could close a trade'),
                     logging.INFO)
 
-        elif is_trade_on and abs(abs(adj_basis_close) - self._cache.last_open_basis) > 5:  # todo remove hardcoding
+        elif is_position_open and abs(abs(adj_basis_close) - self._cache.last_open_basis) > 5:  # todo remove hardcoding
             _notify(
                 TgMsg(coin,
                       TG_CAN_CLOSE,
@@ -121,18 +122,16 @@ class StrategyManager:
             if order.market in [perp_symbol, fut_symbol]:
                 return False
 
-        offset = cfg.SPREAD_OFFSET
+        size = cfg.TRADE_SIZE_USD / max(perp_ticker.mark, fut_ticker.mark)
 
         if ticker_combo.is_contango:
             # sell perp, buy future
-            size = cfg.TRADE_SIZE_USD / perp_ticker.mark
-            ask_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.bid * offset, size=size, is_buy=False)
-            bid_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.ask / offset, size=size, is_buy=True)
+            ask_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.bid * self._offset, size=size, is_buy=False)
+            bid_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.ask / self._offset, size=size, is_buy=True)
         else:
             # sell future, buy perp
-            size = cfg.TRADE_SIZE_USD / fut_ticker.mark
-            ask_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.bid * offset, size=size, is_buy=False)
-            bid_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.ask / offset, size=size, is_buy=True)
+            ask_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.bid * self._offset, size=size, is_buy=False)
+            bid_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.ask / self._offset, size=size, is_buy=True)
 
         order_id = self._rest_manager.place_order_limit(bid_order)
         try:
@@ -161,19 +160,17 @@ class StrategyManager:
             if order.market in [perp_symbol, fut_symbol]:
                 return False
 
-        offset = cfg.SPREAD_OFFSET
-
         perp_pos = self._get_position(perp_symbol)
         if perp_pos.is_long:
             # sell perp, buy future
             size = perp_ticker.mark / cfg.TRADE_SIZE_USD
-            ask_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.bid * offset, size=size, is_buy=False)
-            bid_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.ask / offset, size=size, is_buy=True)
+            ask_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.bid * self._offset, size=size, is_buy=False)
+            bid_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.ask / self._offset, size=size, is_buy=True)
         else:
             # sell future, buy perp
             size = fut_ticker.mark / cfg.TRADE_SIZE_USD
-            ask_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.bid * offset, size=size, is_buy=False)
-            bid_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.ask / offset, size=size, is_buy=True)
+            ask_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.bid * self._offset, size=size, is_buy=False)
+            bid_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.ask / self._offset, size=size, is_buy=True)
 
         order_id = self._rest_manager.place_order_limit(bid_order)
         try:
@@ -211,8 +208,7 @@ class RestManager:
                 raise Exception(
                     f'rounded size is {size_rounded}, which is less than the min size {market_info.min_provide_size}')
 
-            side = "buy" if order.is_buy else "sell"
-            return self._connector_rest.place_order_limit(order.symbol, side, price_rounded, size_rounded)
+            return self._connector_rest.place_order_limit(order.symbol, order.is_buy, price_rounded, size_rounded)
 
         except Exception as e:
             raise Exception(f'could not place limit order {order}: {e}')
