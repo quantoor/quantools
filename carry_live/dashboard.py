@@ -4,7 +4,7 @@ from common import util
 import config
 from ftx_connector import FtxConnectorRest
 from common.FtxClientWs import FtxWebsocketClient
-from classes import Cache, WsTicker
+from classes import StrategyCache, WsTicker
 import time
 import pandas as pd
 import asyncio
@@ -121,10 +121,10 @@ def show_positions():
             if not util.file_exists(cache_path):
                 continue
 
-            cache = Cache()
+            cache = StrategyCache()
             cache.read(cache_path)
             if cache.perp_size or cache.fut_size:
-                data.append(cache.get_dict())
+                data.append(cache.to_dict())
 
         df = pd.DataFrame(data)
         df.columns = ['Coin', 'LOB', 'COT', 'Perp Size', 'Fut Size', 'Basis', 'Adj Basis Open', 'Adj Basis Close',
@@ -139,6 +139,8 @@ def show_positions():
 def show_manual_trading():
     st.title(MODES[2])
 
+    offset = st.number_input('Spread offset', min_value=0., max_value=2., value=1.2)
+
     coin = st.selectbox('Coin', [""] + _coins)
     if not coin:
         return
@@ -147,23 +149,40 @@ def show_manual_trading():
     fut_symbol = util.get_future_symbol(coin, _expiry)
 
     basis_placeholder = st.empty()
+    basis_placeholder.json({
+        "is_contango": None,
+        "basis": None,
+        "adj_basis_open": None,
+        "adj_basis_close": None
+    })
 
-    while True:
-        perp_ticker = _get_ticker(perp_symbol)
-        fut_ticker = _get_ticker(fut_symbol)
+    if st.button('Get Tickers'):
+        perp_ticker = WsTicker(connector_rest._client.get_future(perp_symbol))
+        fut_ticker = WsTicker(connector_rest._client.get_future(fut_symbol))
 
-        if perp_ticker is None or fut_ticker is None:
-            continue
-
-        tickerCombo = TickerCombo(coin, perp_ticker, fut_ticker)
+        ticker_combo = TickerCombo(coin, _expiry, perp_ticker, fut_ticker)
         basis_placeholder.json({
-            "is_contango": tickerCombo.is_contango,
-            "basis": round(tickerCombo.basis, 4),
-            "adj_basis_open": round(tickerCombo.adj_basis_open, 4),
-            "adj_basis_close": round(tickerCombo.adj_basis_close, 4)
+            "is_contango": ticker_combo.is_contango,
+            "basis": round(ticker_combo.basis, 4),
+            "adj_basis_open": round(ticker_combo.adj_basis_open, 4),
+            "adj_basis_close": round(ticker_combo.adj_basis_close, 4)
         })
 
-        time.sleep(0.3)
+    if st.button('Open Position'):
+        perp_ticker = WsTicker(connector_rest._client.get_future(perp_symbol))
+        fut_ticker = WsTicker(connector_rest._client.get_future(fut_symbol))
+        ticker_combo = TickerCombo(coin, _expiry, perp_ticker, fut_ticker)
+
+        size = 50 / max(perp_ticker.mark, fut_ticker.mark)
+
+        if ticker_combo.is_contango:
+            # buy perp, sell future
+            connector_rest.place_order_limit(perp_symbol, True, perp_ticker.bid / offset, size)
+            connector_rest.place_order_limit(fut_symbol, False, fut_ticker.ask * offset, size)
+        else:
+            # buy future, sell perp
+            connector_rest.place_order_limit(fut_symbol, True, fut_ticker.bid / offset, size)
+            connector_rest.place_order_limit(perp_symbol, False, perp_ticker.ask * offset, size)
 
 
 main()
