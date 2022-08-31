@@ -16,10 +16,11 @@ TG_ALWAYS_NOTIFY = 'always_notify'
 
 
 class TgMsg:
-    def __init__(self, coin: str, msg_type: str, msg: str):
+    def __init__(self, coin: str, msg_type: str, msg: str, level: int):
         self.coin = coin
         self.msg_type = msg_type
         self.msg = msg
+        self.level = level
 
 
 class TgBot:
@@ -28,9 +29,9 @@ class TgBot:
         self._bot = telegram.Bot(token=config.TELEGRAM_TOKEN)
         self._msg_cache = {}
 
-    def send(self, tg_msg: TgMsg, level) -> None:
+    def send(self, tg_msg: TgMsg) -> None:
         if self._enough_time_passed(tg_msg):
-            msg = f'[{_level_dict[level]}] {tg_msg.msg}'
+            msg = f'[{_level_dict[tg_msg.level]}] {tg_msg.msg}'
             self._bot.sendMessage(chat_id=self._chat_id, text=msg)
 
     def _enough_time_passed(self, msg: TgMsg) -> bool:

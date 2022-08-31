@@ -7,8 +7,9 @@ import config as cfg
 import logging
 
 
-def _notify(tg_msg: TgMsg, level: int):
-    tg_bot.send(tg_msg, level)
+def _notify(tg_msg: TgMsg):
+    tg_bot.send(tg_msg)
+    level = tg_msg.level
     if level == logging.INFO:
         logger.info(tg_msg.msg)
     elif level == logging.WARNING:
@@ -30,7 +31,7 @@ class CarryBot:
         self._connector_ws.listen_to_tickers(cfg.REFRESH_TIME)
 
     def _receive_tickers(self, tickers: List[TickerCombo]) -> None:
-        logger.debug('Process tickers')
+        logger.debug('Receive tickers')
         self._strategy_manager.update_positions()
         for ticker_combo in tickers:
             self._strategy_manager.process_ticker(ticker_combo)
@@ -60,36 +61,36 @@ class StrategyManager:
             if cfg.LIVE_TRADE:
                 try:
                     if self._close_position(ticker_combo):
-                        _notify(TgMsg(coin, TG_ALWAYS_NOTIFY, f'Closed trade for {coin}'), logging.INFO)
+                        _notify(TgMsg(coin, TG_ALWAYS_NOTIFY, f'Closed trade for {coin}', logging.INFO))
                 except Exception as e:
-                    _notify(TgMsg(coin, TG_ERROR, f'Could not close trade for {coin}: {e}'), logging.ERROR)
+                    _notify(TgMsg(coin, TG_ERROR, f'Could not close trade for {coin}: {e}', logging.ERROR))
             else:
                 _notify(
                     TgMsg(coin,
                           TG_CAN_CLOSE,
-                          f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and could close a trade'),
-                    logging.INFO)
+                          f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and could close a trade',
+                          logging.INFO))
 
         elif is_position_open and abs(abs(adj_basis_close) - self._cache.last_open_basis) > 5:  # todo remove hardcoding
             _notify(
                 TgMsg(coin,
                       TG_CAN_CLOSE,
-                      f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and has decreased more than 5 points'),
-                logging.INFO)
+                      f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and has decreased more than 5 points',
+                      logging.INFO))
 
         elif abs(adj_basis_open) > self._cache.current_open_threshold:
             if cfg.LIVE_TRADE:
                 try:
                     if self._open_position(ticker_combo):
-                        _notify(TgMsg(coin, TG_ALWAYS_NOTIFY, f'Opened trade for {coin}'), logging.INFO)
+                        _notify(TgMsg(coin, TG_ALWAYS_NOTIFY, f'Opened trade for {coin}', logging.INFO))
                 except Exception as e:
-                    _notify(TgMsg(coin, TG_ERROR, f'Could not open trade for {coin}: {e}'), logging.ERROR)
+                    _notify(TgMsg(coin, TG_ERROR, f'Could not open trade for {coin}: {e}', logging.ERROR))
             else:
                 _notify(
                     TgMsg(coin,
                           TG_CAN_OPEN,
-                          f'{coin} basis is {round(basis, 2)} ({round(adj_basis_open, 2)}) and could open a trade'),
-                    logging.INFO)
+                          f'{coin} basis is {round(basis, 2)} ({round(adj_basis_open, 2)}) and could open a trade',
+                          logging.INFO))
 
         # todo refactor this
         perp_pos = self._get_position(util.get_perp_symbol(coin))
