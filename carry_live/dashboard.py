@@ -1,7 +1,7 @@
 import importer
 import streamlit as st
 from common import util
-import config
+import config as cfg
 from ftx_connector import FtxConnectorRest
 from common.FtxClientWs import FtxWebsocketClient
 from classes import StrategyCache, WsTicker
@@ -11,7 +11,7 @@ import asyncio
 from classes import TickerCombo
 
 ws_client = FtxWebsocketClient()
-connector_rest = FtxConnectorRest(config.API_KEY, config.API_SECRET, config.SUB_ACCOUNT)
+connector_rest = FtxConnectorRest(cfg.API_KEY, cfg.API_SECRET, cfg.SUB_ACCOUNT)
 
 EXPIRY = '0930'
 
@@ -44,7 +44,7 @@ def main():
 
 _active_futures = util.get_active_futures_with_expiry()
 _expiry = '0930'
-_coins = [coin for coin in _active_futures[_expiry] if coin not in config.BLACKLIST]
+_coins = [coin for coin in _active_futures[_expiry] if coin not in cfg.BLACKLIST]
 fundings = {coin: None for coin in _coins}
 
 
@@ -116,8 +116,8 @@ def show_positions():
     while True:
         data = []
 
-        for coin in config.WHITELIST:
-            cache_path = f'{config.CACHE_FOLDER}/{coin}.json'
+        for coin in cfg.WHITELIST:
+            cache_path = f'{cfg.CACHE_FOLDER}/{coin}.json'
             if not util.file_exists(cache_path):
                 continue
 
@@ -139,7 +139,7 @@ def show_positions():
 def show_manual_trading():
     st.title(MODES[2])
 
-    offset = st.number_input('Spread offset', min_value=0., max_value=2., value=1.2)
+    offset = st.number_input('Spread offset', min_value=0., max_value=2., value=1.05)
 
     coin = st.selectbox('Coin', [""] + _coins)
     if not coin:
@@ -173,16 +173,16 @@ def show_manual_trading():
         fut_ticker = WsTicker(connector_rest._client.get_future(fut_symbol))
         ticker_combo = TickerCombo(coin, _expiry, perp_ticker, fut_ticker)
 
-        size = 50 / max(perp_ticker.mark, fut_ticker.mark)
+        size = cfg.TRADE_SIZE_USD / max(perp_ticker.mark, fut_ticker.mark)
 
         if ticker_combo.is_contango:
             # buy perp, sell future
-            connector_rest.place_order_limit(perp_symbol, True, perp_ticker.bid / offset, size)
-            connector_rest.place_order_limit(fut_symbol, False, fut_ticker.ask * offset, size)
+            connector_rest.place_order_limit(perp_symbol, True, perp_ticker.ask / offset, size)
+            connector_rest.place_order_limit(fut_symbol, False, fut_ticker.bid * offset, size)
         else:
             # buy future, sell perp
-            connector_rest.place_order_limit(fut_symbol, True, fut_ticker.bid / offset, size)
-            connector_rest.place_order_limit(perp_symbol, False, perp_ticker.ask * offset, size)
+            connector_rest.place_order_limit(fut_symbol, True, fut_ticker.ask / offset, size)
+            connector_rest.place_order_limit(perp_symbol, False, perp_ticker.bid * offset, size)
 
 
 main()
