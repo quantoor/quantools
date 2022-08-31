@@ -87,17 +87,15 @@ def _market_overview():
             if perp_ticker is None or fut_ticker is None:
                 continue
 
-            perp_price = perp_ticker.mark
-            fut_price = fut_ticker.mark
+            ticker_combo = TickerCombo(coin, _expiry, perp_ticker, fut_ticker)
 
-            basis = util.get_basis(perp_price, fut_price)
-
-            if abs(basis) > 1:
+            if abs(ticker_combo.adj_basis_open) > 1:
                 market_data.append({
                     'Coin': coin,
-                    'Perp Price': perp_price,
-                    'Fut Price': fut_price,
-                    'Basis': basis,
+                    'Perp Price': perp_ticker.mark,
+                    'Fut Price': fut_ticker.mark,
+                    'Basis': ticker_combo.basis,
+                    'Adj Basis Open': ticker_combo.adj_basis_open,
                     'Funding': None,  # util.get_funding_rate_avg_24h(perp_symbol)
                 })
 
