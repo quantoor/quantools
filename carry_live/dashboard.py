@@ -127,8 +127,9 @@ def show_positions():
         df = pd.DataFrame(data)
         df.columns = ['Coin', 'LOB', 'COT', 'Perp Size', 'Fut Size', 'Basis', 'Adj Basis Open', 'Adj Basis Close',
                       'Funding']
-        # df.drop(['Perp Price', 'Fut Price'], axis=1, inplace=True)
-        # df = df.reindex(['Coin', 'Perp Size', 'Fut Size', 'Basis', 'Funding'], axis=1)
+        df.drop(['LOB', 'COT'], axis=1, inplace=True)
+        df = df.reindex(['Coin', 'Perp Size', 'Fut Size', 'Adj Basis Open', 'Basis', 'Adj Basis Close',
+                         'Funding'], axis=1)
         data_table.table(df)
 
         time.sleep(1)
