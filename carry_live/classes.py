@@ -48,7 +48,8 @@ class Position:
         self.symbol: str = res['future']
         self.size: float = res['size']
         self.is_long: bool = res['side'] == 'buy'
-        # todo
+        self.entry_price: float = res['entryPrice']
+        self.pnl: float = res['recentPnl']
 
 
 class Order:
@@ -147,13 +148,13 @@ class StrategyCache:
 
 class Trade:
     def __init__(self, res: Dict[str, Any]):
-        self.instrument = res['future']
-        self.trade_id = res['tradeId']
-        self.order_id = res['orderId']
-        self.side = res['side']
-        self.price = res['price']
-        self.amount = res['size']
-        self.fee = res['fee']
-        self.maker = res['liquidity'] == 'maker'
-        self.timestamp = int(datetime.fromisoformat(res['time']).timestamp() * 1000)
-        self.date = res['time']
+        self.instrument: str = res['future']
+        self.trade_id: int = res['tradeId']
+        self.order_id: int = res['orderId']
+        self.side: str = res['side']
+        self.price: float = res['price']
+        self.amount: float = res['size']
+        self.fee: float = res['fee']
+        self.maker: bool = res['liquidity'] == 'maker'
+        self.timestamp: int = int(datetime.fromisoformat(res['time']).timestamp() * 1000)
+        self.date: str = res['time']
