@@ -178,13 +178,13 @@ class FtxClient:
         })
 
     def get_fills(self, market: str = None, start_time: float = None,
-                  end_time: float = None, min_id: int = None, order_id: int = None
+                  end_time: float = None, sorting: str = None, order_id: int = None
                   ) -> List[dict]:
         return self._get('fills', {
             'market': market,
             'start_time': start_time,
             'end_time': end_time,
-            'minId': min_id,
+            'order': sorting,
             'orderId': order_id
         })
 

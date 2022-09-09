@@ -2,6 +2,7 @@ from typing import Dict, Any
 import json
 from common import util
 from common.logger import logger
+from datetime import datetime
 
 
 class WsTicker:
@@ -142,3 +143,17 @@ class StrategyCache:
             "adj_basis_close": self.adj_basis_close,
             "funding": self.funding
         }
+
+
+class Trade:
+    def __init__(self, res: Dict[str, Any]):
+        self.instrument = res['future']
+        self.trade_id = res['tradeId']
+        self.order_id = res['orderId']
+        self.side = res['side']
+        self.price = res['price']
+        self.amount = res['size']
+        self.fee = res['fee']
+        self.maker = res['liquidity'] == 'maker'
+        self.timestamp = int(datetime.fromisoformat(res['time']).timestamp() * 1000)
+        self.date = res['time']

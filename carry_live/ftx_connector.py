@@ -43,6 +43,12 @@ class FtxConnectorRest:
         if res != "Order queued for cancellation":
             raise Exception(res)
 
+    def get_trades(self, market: str, start_ts: Optional[int] = None, end_ts: Optional[int] = None,
+                   order_id: Optional[str] = None) -> List[Trade]:
+        res = self._client.get_fills(market=market, start_time=start_ts, end_time=end_ts, sorting='asc',
+                                     order_id=order_id)
+        return [Trade(trade) for trade in res]
+
 
 class FtxConnectorWs:
     def __init__(self, api_key: str = '', api_secret: str = ''):
