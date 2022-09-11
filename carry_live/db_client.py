@@ -31,8 +31,7 @@ class DbClient:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 instrument TEXT NOT NULL UNIQUE,
                 side TEXT NOT NULL,
-                entry_price REAL NOT NULL,
-                pnl REAL NOT NULL);
+                entry_price REAL NOT NULL);
                 '''
         self._conn.execute(query)
 
@@ -49,8 +48,8 @@ class DbClient:
 
     def insert_position(self, p: Position) -> bool:
         side = 'long' if p.is_long else 'short'
-        query = f'''INSERT INTO {self.POSITIONS_TABLE} (instrument, side, entry_price, pnl)
-                VALUES ('{p.symbol}', '{side}', {p.entry_price}, {p.pnl});
+        query = f'''INSERT INTO {self.POSITIONS_TABLE} (instrument, side, entry_price)
+                VALUES ('{p.symbol}', '{side}', {p.entry_price});
                 '''
         try:
             self._conn.execute(query)
