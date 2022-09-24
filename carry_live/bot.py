@@ -48,7 +48,6 @@ class StrategyManager:
     def process_ticker(self, ticker_combo: TickerCombo) -> None:
         coin = ticker_combo.coin
         expiry = ticker_combo.expiry
-        basis = ticker_combo.basis
         basis_open = None
         basis_close = None
 
@@ -59,45 +58,15 @@ class StrategyManager:
         is_position_open, basis_type = self._is_position_open(coin, expiry)
 
         if is_position_open:
-            # self._handle_position(basis_type)
             if basis_type == BasisType.UNDEFINED:
                 logger.error(f'Basis for open position for {coin} is not defined')
                 return
-
-            basis_close = ticker_combo.get_basis_close(basis_type)
-            if abs(basis_close) < 0.1:
-                if cfg.LIVE_TRADE:
-                    try:
-                        if self._close_position(ticker_combo):
-                            _notify(TgMsg(coin, TG_ALWAYS_NOTIFY, f'Closed trade for {coin}', logging.INFO))
-                    except Exception as e:
-                        _notify(TgMsg(coin, TG_ERROR, f'Could not close trade for {coin}: {e}', logging.ERROR))
-                else:
-                    _notify(
-                        TgMsg(coin,
-                              TG_CAN_CLOSE,
-                              f'{coin} basis is {round(basis, 2)} ({round(basis_close, 2)}) and could close a trade',
-                              logging.INFO))
+            self._handle_open_position(ticker_combo)
 
         else:
-            # self._handle_no_position(basis_type)
             if basis_type == BasisType.UNDEFINED:
                 return
-
-            basis_open = ticker_combo.get_basis_open(basis_type)
-            if abs(basis_open) > self._cache.current_open_threshold:
-                if cfg.LIVE_TRADE:
-                    try:
-                        if self._open_position(ticker_combo):
-                            _notify(TgMsg(coin, TG_ALWAYS_NOTIFY, f'Opened trade for {coin}', logging.INFO))
-                    except Exception as e:
-                        _notify(TgMsg(coin, TG_ERROR, f'Could not open trade for {coin}: {e}', logging.ERROR))
-                else:
-                    _notify(
-                        TgMsg(coin,
-                              TG_CAN_OPEN,
-                              f'{coin} basis is {round(basis, 2)} ({round(basis_open, 2)}) and could open a trade',
-                              logging.INFO))
+            self._handle_no_position(ticker_combo)
 
         perp_pos = self._get_position(util.get_perp_symbol(coin))
         fut_pos = self._get_position(util.get_future_symbol(coin, expiry))
@@ -105,11 +74,47 @@ class StrategyManager:
         self._cache.fut_size = None if fut_pos is None else fut_pos.size
         if self._cache.perp_size is not None or self._cache.fut_size is not None:
             self._cache.coin = coin
-            self._cache.basis = basis
+            self._cache.basis = ticker_combo.basis
             self._cache.adj_basis_open = basis_open
             self._cache.adj_basis_close = basis_close
             self._cache.funding = 0  # util.get_funding_rate_avg_24h(util.get_perp_symbol(coin))
             self._cache.write()
+
+    def _handle_open_position(self, ticker_combo: TickerCombo):
+        coin = ticker_combo.coin
+
+        basis_close = ticker_combo.get_basis_close(ticker_combo.basis_type)
+        if abs(basis_close) < 0.1:
+            if cfg.LIVE_TRADE:
+                try:
+                    if self._close_position(ticker_combo):
+                        _notify(TgMsg(coin, TG_ALWAYS_NOTIFY, f'Closed trade for {coin}', logging.INFO))
+                except Exception as e:
+                    _notify(TgMsg(coin, TG_ERROR, f'Could not close trade for {coin}: {e}', logging.ERROR))
+            else:
+                _notify(
+                    TgMsg(coin,
+                          TG_CAN_CLOSE,
+                          f'{coin} basis is {round(basis_close, 2)} and could close a trade',
+                          logging.INFO))
+
+    def _handle_no_position(self, ticker_combo: TickerCombo):
+        coin = ticker_combo.coin
+
+        basis_open = ticker_combo.get_basis_open(ticker_combo.basis_type)
+        if abs(basis_open) > self._cache.current_open_threshold:
+            if cfg.LIVE_TRADE:
+                try:
+                    if self._open_position(ticker_combo):
+                        _notify(TgMsg(coin, TG_ALWAYS_NOTIFY, f'Opened trade for {coin}', logging.INFO))
+                except Exception as e:
+                    _notify(TgMsg(coin, TG_ERROR, f'Could not open trade for {coin}: {e}', logging.ERROR))
+            else:
+                _notify(
+                    TgMsg(coin,
+                          TG_CAN_OPEN,
+                          f'{coin} basis is {round(basis_open, 2)} and could open a trade',
+                          logging.INFO))
 
     def _is_position_open(self, coin: str, expiry: str) -> Tuple[bool, BasisType]:
         perp_pos = self._get_position(util.get_perp_symbol(coin))
