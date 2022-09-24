@@ -3,6 +3,7 @@ import json
 from common import util
 from common.logger import logger
 from datetime import datetime
+from enum import Enum
 
 
 class WsTicker:
@@ -18,6 +19,12 @@ class WsTicker:
         # self.time: float = res['time']
 
 
+class BasisType(Enum):
+    CONTANGO = 1
+    BACKWARDATION = 2
+    UNDEFINED = 3
+
+
 class TickerCombo:
     def __init__(self, coin: str, expiry: str, perp_ticker: WsTicker, fut_ticker: WsTicker):
         self.coin = coin
@@ -28,17 +35,35 @@ class TickerCombo:
         fut_bid, fut_mark, fut_ask = fut_ticker.bid, fut_ticker.mark, fut_ticker.ask
         perp_bid, perp_mark, perp_ask = perp_ticker.bid, perp_ticker.mark, perp_ticker.ask
 
-        fut_spread = fut_ask - fut_bid
-        perp_spread = perp_ask - perp_bid
+        self.basis = self._get_basis(perp_mark, fut_mark)
 
-        carry_spread = fut_mark - perp_mark
-        self.basis = carry_spread / perp_mark * 100
-        self.is_contango = self.basis > 0
+        if perp_bid > fut_ask:
+            self.basis_type = BasisType.CONTANGO
+        elif fut_bid > perp_ask:
+            self.basis_type = BasisType.BACKWARDATION
+        else:
+            self.basis_type = BasisType.UNDEFINED
 
-        self.adj_basis_open = (carry_spread - fut_spread / 2 - perp_spread / 2) / perp_mark * 100
-        self.adj_basis_close = (carry_spread + fut_spread / 2 + perp_spread / 2) / perp_mark * 100
-        if not self.is_contango:
-            self.adj_basis_open, self.adj_basis_close = self.adj_basis_close, self.adj_basis_open
+    @staticmethod
+    def _get_basis(x, y):
+        mid = (x + y) / 2
+        return (x - y) / mid * 100
+
+    def get_basis_open(self, basis_type: BasisType) -> float:
+        if basis_type == BasisType.CONTANGO:
+            return self._get_basis(self.perp_ticker.bid, self.fut_ticker.ask)
+        elif basis_type == BasisType.BACKWARDATION:
+            return self._get_basis(self.fut_ticker.bid, self.perp_ticker.ask)
+        else:
+            raise Exception(f'could not get basis open: basis type {basis_type} invalid')
+
+    def get_basis_close(self, basis_type: BasisType) -> float:
+        if basis_type == BasisType.CONTANGO:
+            return self._get_basis(self.perp_ticker.ask, self.fut_ticker.bid)
+        elif basis_type == BasisType.BACKWARDATION:
+            return self._get_basis(self.fut_ticker.ask, self.perp_ticker.bid)
+        else:
+            raise Exception(f'could not get basis close: basis type {basis_type} invalid')
 
 
 class Position:
