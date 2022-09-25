@@ -6,6 +6,7 @@ from telegram_bot import *
 import config as cfg
 import logging
 from redis_client import RedisClient
+from common import util
 
 
 def _notify(tg_msg: TgMsg):
@@ -72,7 +73,7 @@ class StrategyManager:
         basis_close = ticker_combo.get_basis_close(ticker_combo.basis_type)
         basis_open = ticker_combo.get_basis_open(ticker_combo.basis_type)
 
-        if abs(basis_close) < 0.1:
+        if basis_close is not None and abs(basis_close) < 0.1:
             if cfg.LIVE_TRADE:
                 try:
                     self._close_position(ticker_combo, strategy_status)
@@ -83,7 +84,7 @@ class StrategyManager:
                 msg = f'{coin} basis close: {round(basis_close, 2)}, strategy status: {strategy_status} → could close position'
                 _notify(TgMsg(coin, TG_CAN_CLOSE, msg, logging.INFO))
 
-        elif abs(basis_open) > strategy_status.last_open_basis + cfg.THRESHOLD_INCREMENT:
+        elif basis_open is not None and abs(basis_open) > strategy_status.last_open_basis + cfg.THRESHOLD_INCREMENT:
             pass  # todo check risk limit
 
             if cfg.LIVE_TRADE:
@@ -99,7 +100,7 @@ class StrategyManager:
     def _handle_no_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus) -> None:
         coin = ticker_combo.coin
         basis_open = ticker_combo.get_basis_open(ticker_combo.basis_type)
-        if abs(basis_open) > cfg.THRESHOLD_INCREMENT:
+        if basis_open is not None and abs(basis_open) > cfg.THRESHOLD_INCREMENT:
             if cfg.LIVE_TRADE:
                 try:
                     self._open_position(ticker_combo, strategy_status)

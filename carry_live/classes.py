@@ -1,7 +1,4 @@
-from typing import Dict, Any
-import json
-from common import util
-from common.logger import logger
+from typing import Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
 
@@ -49,21 +46,21 @@ class TickerCombo:
         mid = (x + y) / 2
         return (x - y) / mid * 100
 
-    def get_basis_open(self, basis_type: BasisType) -> float:
+    def get_basis_open(self, basis_type: BasisType) -> Optional[float]:
         if basis_type == BasisType.CONTANGO:
             return self._get_basis(self.perp_ticker.bid, self.fut_ticker.ask)
         elif basis_type == BasisType.BACKWARDATION:
             return self._get_basis(self.fut_ticker.bid, self.perp_ticker.ask)
         else:
-            raise Exception(f'could not get basis open: basis type {basis_type} invalid')
+            return None
 
-    def get_basis_close(self, basis_type: BasisType) -> float:
+    def get_basis_close(self, basis_type: BasisType) -> Optional[float]:
         if basis_type == BasisType.CONTANGO:
             return self._get_basis(self.perp_ticker.ask, self.fut_ticker.bid)
         elif basis_type == BasisType.BACKWARDATION:
             return self._get_basis(self.fut_ticker.ask, self.perp_ticker.bid)
         else:
-            raise Exception(f'could not get basis close: basis type {basis_type} invalid')
+            return None
 
 
 class Position:
