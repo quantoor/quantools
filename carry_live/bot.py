@@ -67,16 +67,6 @@ class StrategyManager:
                 return
             self._handle_no_position(ticker_combo, strategy_status)
 
-    def _update_strategy_status(self, strategy_status: StrategyStatus) -> None:
-        self.update_positions()
-        coin = strategy_status.coin
-        perp_pos = self._get_position(util.get_perp_symbol(coin))
-        fut_pos = self._get_position(util.get_future_symbol(coin, strategy_status.expiry))
-
-        strategy_status.perp_size = None if perp_pos is None else perp_pos.size
-        strategy_status.fut_size = None if fut_pos is None else fut_pos.size
-        self._redis_client.set(strategy_status)
-
     def _handle_open_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus) -> None:
         coin = ticker_combo.coin
         basis_close = ticker_combo.get_basis_close(ticker_combo.basis_type)
@@ -90,7 +80,7 @@ class StrategyManager:
                     msg = f'Could not close position for {coin}: {e}'
                     _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
             else:
-                msg = f'{coin} basis is {round(basis_close, 2)} and could close position'
+                msg = f'{coin} basis close: {round(basis_close, 2)}, strategy status: {strategy_status} → could close position'
                 _notify(TgMsg(coin, TG_CAN_CLOSE, msg, logging.INFO))
 
         elif abs(basis_open) > strategy_status.last_open_basis + cfg.THRESHOLD_INCREMENT:
@@ -103,7 +93,7 @@ class StrategyManager:
                     msg = f'Could not open trade for {coin}: {e}'
                     _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
             else:
-                msg = f'{coin} basis is {round(basis_close, 2)} and could increment position'
+                msg = f'{coin} basis open: {round(basis_open, 2)}, strategy status: {strategy_status} → could increment position'
                 _notify(TgMsg(coin, TG_CAN_CLOSE, msg, logging.INFO))
 
     def _handle_no_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus) -> None:
@@ -117,7 +107,7 @@ class StrategyManager:
                     msg = f'Could not open position for {coin}: {e}'
                     _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
             else:
-                msg = f'{coin} basis is {round(basis_open, 2)} and could open position'
+                msg = f'{coin} basis open: {round(basis_open, 2)}, strategy status: {strategy_status} → could open position'
                 _notify(TgMsg(coin, TG_CAN_OPEN, msg, logging.INFO))
 
     def _is_position_open(self, coin: str, expiry: str) -> Tuple[bool, BasisType]:
@@ -171,7 +161,7 @@ class StrategyManager:
         self._update_strategy_status(strategy_status)
 
         # notify
-        msg = f'Opened position for {ticker_combo.coin}'
+        msg = f'Opened position for {ticker_combo.coin}. Strategy status: {strategy_status}'
         _notify(TgMsg(ticker_combo.coin, TG_ALWAYS_NOTIFY, msg, logging.INFO))
 
     def _close_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus) -> None:
@@ -211,7 +201,7 @@ class StrategyManager:
         self._update_strategy_status(strategy_status)
 
         # notify
-        msg = f'Closed position for {ticker_combo.coin}'
+        msg = f'Closed position for {ticker_combo.coin}. Strategy status: {strategy_status}'
         _notify(TgMsg(ticker_combo.coin, TG_ALWAYS_NOTIFY, msg, logging.INFO))
 
     def _get_position(self, symbol: str) -> Optional[Position]:
@@ -219,6 +209,16 @@ class StrategyManager:
         if len(position) == 0:
             return None
         return position[0]
+
+    def _update_strategy_status(self, strategy_status: StrategyStatus) -> None:
+        self.update_positions()
+        coin = strategy_status.coin
+        perp_pos = self._get_position(util.get_perp_symbol(coin))
+        fut_pos = self._get_position(util.get_future_symbol(coin, strategy_status.expiry))
+
+        strategy_status.perp_size = None if perp_pos is None else perp_pos.size
+        strategy_status.fut_size = None if fut_pos is None else fut_pos.size
+        self._redis_client.set(strategy_status)
 
     def update_positions(self):
         self._positions = self._rest_manager.get_positions()
