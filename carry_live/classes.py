@@ -122,53 +122,33 @@ class LimitOrder:
         return f'symbol: {self.symbol}, price: {self.price}, size: {self.size}, is_buy: {self.is_buy}'
 
 
-class StrategyCache:
+class StrategyStatus:
     def __init__(self):
-        self._path: str = ''
         self.coin: str = ''
         self.last_open_basis: float = 0.
-        self.current_open_threshold: float = 0.
         self.perp_size: float = 0.
         self.fut_size: float = 0.
-        self.basis: float = 0.
-        self.adj_basis_open: float = 0.
-        self.adj_basis_close: float = 0.
-        self.funding: float = 0.
-
-    def read(self, path: str):
-        self._path = path
-        if util.file_exists(self._path):
-            try:
-                with open(self._path, 'r') as f:
-                    data = json.load(f)
-                    self.coin = data['coin']
-                    self.last_open_basis = data['last_open_basis']
-                    self.current_open_threshold = data['current_open_threshold']
-                    self.perp_size = data['perp_size']
-                    self.fut_size = data['fut_size']
-                    self.basis = data['basis']
-                    self.adj_basis_open = data['adj_basis_open']
-                    self.adj_basis_close = data['adj_basis_close']
-                    self.funding = data['funding']
-            except Exception as e:
-                logger.error(f'Could not read cache at path {path}: {e}')
-
-    def write(self):
-        with open(self._path, 'w') as f:
-            f.write(json.dumps(self.to_dict()))
+        self.n_positions: int = 0
 
     def to_dict(self):
         return {
             "coin": self.coin,
             "last_open_basis": self.last_open_basis,
-            "current_open_threshold": self.current_open_threshold,
             "perp_size": self.perp_size,
             "fut_size": self.fut_size,
-            "basis": self.basis,
-            "adj_basis_open": self.adj_basis_open,
-            "adj_basis_close": self.adj_basis_close,
-            "funding": self.funding
+            "n_positions": self.n_positions
         }
+
+    def from_dict(self, res: dict):
+        self.coin = res['coin']
+        self.last_open_basis = res['last_open_basis']
+        self.perp_size = res['perp_size']
+        self.fut_size = res['fut_size']
+        self.n_positions = res['n_positions']
+        return self
+
+    def __str__(self):
+        return f"{{coin: {self.coin}, LOB: {self.last_open_basis}, perp_size: {self.perp_size}, fut_size: {self.fut_size}, n_positions: {self.n_positions}}}"
 
 
 class Trade:

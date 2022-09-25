@@ -17,8 +17,8 @@
   "live_trade": true,
   "strategy": {
     "trade_size_usd": 1000,
-    "init_open_threshold": 3,
     "threshold_increment": 3,
+    "max_n_positions": 5,
     "spread_offset": 1.2
   }
 }

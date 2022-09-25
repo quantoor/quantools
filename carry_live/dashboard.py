@@ -4,7 +4,7 @@ from common import util
 import config as cfg
 from ftx_connector import FtxConnectorRest
 from common.FtxClientWs import FtxWebsocketClient
-from classes import StrategyCache, WsTicker
+from classes import StrategyStatus, WsTicker
 import time
 import pandas as pd
 import asyncio
@@ -119,7 +119,7 @@ def show_positions():
             if not util.file_exists(cache_path):
                 continue
 
-            cache = StrategyCache()
+            cache = StrategyStatus()
             cache.read(cache_path)
             if cache.perp_size or cache.fut_size:
                 data.append(cache.to_dict())
