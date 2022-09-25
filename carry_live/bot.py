@@ -94,7 +94,7 @@ class StrategyManager:
                 try:
                     self._open_position(ticker_combo, strategy_status, basis_open)
                 except Exception as e:
-                    msg = f'Could not open trade for {coin}: {e}'
+                    msg = f'Could not open position for {coin}: {e}'
                     _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
             else:
                 msg = f'{coin} basis open: {round(basis_open, 2)}, strategy status: {strategy_status} → could increment position'
@@ -160,6 +160,7 @@ class StrategyManager:
             raise Exception(str(e))
 
         # update strategy status
+        strategy_status.n_positions += 1
         strategy_status.LOB = basis_open
         self._update_strategy_status(strategy_status)
 
@@ -200,6 +201,7 @@ class StrategyManager:
             raise Exception(str(e))
 
         # update strategy status
+        strategy_status.n_positions = 0
         strategy_status.LOB = 0
         self._update_strategy_status(strategy_status)
 
@@ -221,6 +223,7 @@ class StrategyManager:
 
         strategy_status.perp_size = None if perp_pos is None else perp_pos.size
         strategy_status.fut_size = None if fut_pos is None else fut_pos.size
+        strategy_status.last_time_udpated = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
         self._redis_client.set(strategy_status)
 
     def update_positions(self):

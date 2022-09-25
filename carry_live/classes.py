@@ -127,6 +127,7 @@ class StrategyStatus:
         self.perp_size: float = 0.
         self.fut_size: float = 0.
         self.n_positions: int = 0
+        self.last_time_udpated: str = ''
 
     def to_dict(self):
         return {
@@ -135,7 +136,8 @@ class StrategyStatus:
             "LOB": self.LOB,
             "perp_size": self.perp_size,
             "fut_size": self.fut_size,
-            "n_positions": self.n_positions
+            "n_positions": self.n_positions,
+            "last_time_updated": self.last_time_udpated
         }
 
     def from_dict(self, res: dict):
@@ -145,10 +147,18 @@ class StrategyStatus:
         self.perp_size = res['perp_size']
         self.fut_size = res['fut_size']
         self.n_positions = res['n_positions']
+        self.last_time_udpated = res['last_time_updated']
         return self
 
     def __str__(self):
-        return f"{{coin: {self.coin}-{self.expiry}, LOB: {self.LOB}, perp_size: {self.perp_size}, fut_size: {self.fut_size}, n_positions: {self.n_positions}}}"
+        return "{" \
+               f"coin: {self.coin}-{self.expiry}," \
+               f"LOB: {self.LOB}," \
+               f"perp_size: {self.perp_size}," \
+               f"fut_size: {self.fut_size}," \
+               f"n_positions: {self.n_positions}," \
+               f"last_time_updated: {self.last_time_udpated}" \
+               "}"
 
 
 class Trade:
