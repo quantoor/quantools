@@ -125,6 +125,7 @@ class LimitOrder:
 class StrategyStatus:
     def __init__(self):
         self.coin: str = ''
+        self.expiry: str = ''
         self.last_open_basis: float = 0.
         self.perp_size: float = 0.
         self.fut_size: float = 0.
@@ -133,6 +134,7 @@ class StrategyStatus:
     def to_dict(self):
         return {
             "coin": self.coin,
+            "expiry": self.expiry,
             "last_open_basis": self.last_open_basis,
             "perp_size": self.perp_size,
             "fut_size": self.fut_size,
@@ -141,6 +143,7 @@ class StrategyStatus:
 
     def from_dict(self, res: dict):
         self.coin = res['coin']
+        self.expiry = res['expiry']
         self.last_open_basis = res['last_open_basis']
         self.perp_size = res['perp_size']
         self.fut_size = res['fut_size']
@@ -148,7 +151,7 @@ class StrategyStatus:
         return self
 
     def __str__(self):
-        return f"{{coin: {self.coin}, LOB: {self.last_open_basis}, perp_size: {self.perp_size}, fut_size: {self.fut_size}, n_positions: {self.n_positions}}}"
+        return f"{{coin: {self.coin}-{self.expiry}, LOB: {self.last_open_basis}, perp_size: {self.perp_size}, fut_size: {self.fut_size}, n_positions: {self.n_positions}}}"
 
 
 class Trade:

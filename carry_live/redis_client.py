@@ -13,8 +13,8 @@ class RedisClient:
     def __init__(self, host: str = 'localhost', port: int = 6379, db: int = 3):
         self._r = redis.Redis(host=host, port=port, db=db)
 
-    def set(self, key: str, value: StrategyStatus) -> None:
-        self._r.set(key, json.dumps(value.to_dict()))
+    def set(self, value: StrategyStatus) -> None:
+        self._r.set(value.coin, json.dumps(value.to_dict()))
 
     def get(self, key: str) -> Optional[StrategyStatus]:
         res = self._r.get(key)
