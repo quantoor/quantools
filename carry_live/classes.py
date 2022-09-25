@@ -123,7 +123,7 @@ class StrategyStatus:
     def __init__(self):
         self.coin: str = ''
         self.expiry: str = ''
-        self.last_open_basis: float = 0.
+        self.LOB: float = 0.
         self.perp_size: float = 0.
         self.fut_size: float = 0.
         self.n_positions: int = 0
@@ -132,7 +132,7 @@ class StrategyStatus:
         return {
             "coin": self.coin,
             "expiry": self.expiry,
-            "last_open_basis": self.last_open_basis,
+            "LOB": self.LOB,
             "perp_size": self.perp_size,
             "fut_size": self.fut_size,
             "n_positions": self.n_positions
@@ -141,14 +141,14 @@ class StrategyStatus:
     def from_dict(self, res: dict):
         self.coin = res['coin']
         self.expiry = res['expiry']
-        self.last_open_basis = res['last_open_basis']
+        self.LOB = res['LOB']
         self.perp_size = res['perp_size']
         self.fut_size = res['fut_size']
         self.n_positions = res['n_positions']
         return self
 
     def __str__(self):
-        return f"{{coin: {self.coin}-{self.expiry}, LOB: {self.last_open_basis}, perp_size: {self.perp_size}, fut_size: {self.fut_size}, n_positions: {self.n_positions}}}"
+        return f"{{coin: {self.coin}-{self.expiry}, LOB: {self.LOB}, perp_size: {self.perp_size}, fut_size: {self.fut_size}, n_positions: {self.n_positions}}}"
 
 
 class Trade:

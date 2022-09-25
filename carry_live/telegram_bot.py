@@ -12,7 +12,9 @@ _level_dict = {
 }
 
 TG_CAN_OPEN = 'can_open'
+TG_CAN_INCREMENT = 'can_increment'
 TG_CAN_CLOSE = 'can_close'
+TG_REACHED_MAX_POSITIONS = 'reached_max_positions'
 TG_ERROR = 'error'
 TG_ALWAYS_NOTIFY = 'always_notify'
 

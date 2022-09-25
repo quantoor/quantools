@@ -57,14 +57,14 @@ class StrategyManager:
             strategy_status = StrategyStatus()
 
         # check current position
-        is_position_open, basis_type = self._is_position_open(coin, expiry)
+        is_position_open, open_basis_type = self._is_position_open(coin, expiry)
         if is_position_open:
-            if basis_type == BasisType.UNDEFINED:
+            if open_basis_type == BasisType.UNDEFINED:
                 logger.error(f'Basis for open position for {coin} is not defined')
                 return
             self._handle_open_position(ticker_combo, strategy_status)
         else:
-            if basis_type == BasisType.UNDEFINED:
+            if open_basis_type == BasisType.UNDEFINED:
                 return
             self._handle_no_position(ticker_combo, strategy_status)
 
@@ -73,7 +73,7 @@ class StrategyManager:
         basis_close = ticker_combo.get_basis_close(ticker_combo.basis_type)
         basis_open = ticker_combo.get_basis_open(ticker_combo.basis_type)
 
-        if basis_close is not None and abs(basis_close) < 0.1:
+        if (basis_close is not None) and (abs(basis_close) < 0.1 or basis_close * strategy_status.LOB < 0):
             if cfg.LIVE_TRADE:
                 try:
                     self._close_position(ticker_combo, strategy_status)
@@ -84,26 +84,29 @@ class StrategyManager:
                 msg = f'{coin} basis close: {round(basis_close, 2)}, strategy status: {strategy_status} → could close position'
                 _notify(TgMsg(coin, TG_CAN_CLOSE, msg, logging.INFO))
 
-        elif basis_open is not None and abs(basis_open) > strategy_status.last_open_basis + cfg.THRESHOLD_INCREMENT:
-            pass  # todo check risk limit
+        elif (basis_open is not None) and abs(basis_open) > abs(strategy_status.LOB + cfg.THRESHOLD_INCREMENT):
+            if strategy_status.n_positions >= cfg.MAX_N_POSITIONS:
+                msg = f'{coin} basis open: {round(basis_open, 2)}, strategy status: {strategy_status} → could increment position, but max n positions reached'
+                _notify(TgMsg(coin, TG_REACHED_MAX_POSITIONS, msg, logging.INFO))
+                return
 
             if cfg.LIVE_TRADE:
                 try:
-                    self._open_position(ticker_combo, strategy_status)
+                    self._open_position(ticker_combo, strategy_status, basis_open)
                 except Exception as e:
                     msg = f'Could not open trade for {coin}: {e}'
                     _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
             else:
                 msg = f'{coin} basis open: {round(basis_open, 2)}, strategy status: {strategy_status} → could increment position'
-                _notify(TgMsg(coin, TG_CAN_CLOSE, msg, logging.INFO))
+                _notify(TgMsg(coin, TG_CAN_INCREMENT, msg, logging.INFO))
 
     def _handle_no_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus) -> None:
         coin = ticker_combo.coin
         basis_open = ticker_combo.get_basis_open(ticker_combo.basis_type)
-        if basis_open is not None and abs(basis_open) > cfg.THRESHOLD_INCREMENT:
+        if (basis_open is not None) and abs(basis_open) > cfg.THRESHOLD_INCREMENT:
             if cfg.LIVE_TRADE:
                 try:
-                    self._open_position(ticker_combo, strategy_status)
+                    self._open_position(ticker_combo, strategy_status, basis_open)
                 except Exception as e:
                     msg = f'Could not open position for {coin}: {e}'
                     _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
@@ -125,7 +128,7 @@ class StrategyManager:
         else:
             return True, BasisType.UNDEFINED
 
-    def _open_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus) -> None:
+    def _open_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus, basis_open: float) -> None:
         perp_symbol = util.get_perp_symbol(ticker_combo.coin)
         fut_symbol = util.get_future_symbol(ticker_combo.coin, ticker_combo.expiry)
 
@@ -157,8 +160,7 @@ class StrategyManager:
             raise Exception(str(e))
 
         # update strategy status
-        adj_basis_open = ticker_combo.get_basis_open(ticker_combo.basis_type)
-        strategy_status.last_open_basis = abs(adj_basis_open)
+        strategy_status.LOB = basis_open
         self._update_strategy_status(strategy_status)
 
         # notify
@@ -198,7 +200,7 @@ class StrategyManager:
             raise Exception(str(e))
 
         # update strategy status
-        strategy_status.last_open_basis = 0
+        strategy_status.LOB = 0
         self._update_strategy_status(strategy_status)
 
         # notify
