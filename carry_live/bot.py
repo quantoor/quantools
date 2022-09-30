@@ -42,7 +42,7 @@ class CarryBot:
 
 class StrategyManager:
     def __init__(self):
-        self._offset = cfg.SPREAD_OFFSET
+        self._offset = 1 + cfg.SPREAD_OFFSET / 100
         self._positions = None
         self._rest_manager = RestManager()
         self._redis_client = RedisClient()
@@ -54,7 +54,7 @@ class StrategyManager:
         # load strategy status
         strategy_status = self._redis_client.get(coin)
         if strategy_status is None:
-            strategy_status = StrategyStatus()
+            strategy_status = StrategyStatus(coin, expiry)
 
         # check current position
         is_position_open, open_basis_type = self._is_position_open(coin, expiry)
@@ -64,8 +64,6 @@ class StrategyManager:
                 return
             self._handle_open_position(ticker_combo, strategy_status)
         else:
-            if open_basis_type == BasisType.UNDEFINED:
-                return
             self._handle_no_position(ticker_combo, strategy_status)
 
     def _handle_open_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus) -> None:
@@ -73,7 +71,7 @@ class StrategyManager:
         basis_close = ticker_combo.get_basis_close(ticker_combo.basis_type)
         basis_open = ticker_combo.get_basis_open(ticker_combo.basis_type)
 
-        if (basis_close is not None) and (abs(basis_close) < 0.1 or basis_close * strategy_status.LOB < 0):
+        if (basis_close is not None) and (abs(basis_close) < 0.1 or basis_close * strategy_status.last_open_basis < 0):
             if cfg.LIVE_TRADE:
                 try:
                     self._close_position(ticker_combo, strategy_status)
@@ -84,7 +82,7 @@ class StrategyManager:
                 msg = f'{coin} basis close: {round(basis_close, 2)}, strategy status: {strategy_status} → could close position'
                 _notify(TgMsg(coin, TG_CAN_CLOSE, msg, logging.INFO))
 
-        elif (basis_open is not None) and abs(basis_open) > abs(strategy_status.LOB + cfg.THRESHOLD_INCREMENT):
+        elif (basis_open is not None) and abs(basis_open) > abs(strategy_status.last_open_basis + cfg.THRESHOLD_INCREMENT):
             if strategy_status.n_positions >= cfg.MAX_N_POSITIONS:
                 msg = f'{coin} basis open: {round(basis_open, 2)}, strategy status: {strategy_status} → could increment position, but max n positions reached'
                 _notify(TgMsg(coin, TG_REACHED_MAX_POSITIONS, msg, logging.INFO))
@@ -161,7 +159,7 @@ class StrategyManager:
 
         # update strategy status
         strategy_status.n_positions += 1
-        strategy_status.LOB = basis_open
+        strategy_status.last_open_basis = basis_open
         self._update_strategy_status(strategy_status)
 
         # notify
@@ -202,7 +200,7 @@ class StrategyManager:
 
         # update strategy status
         strategy_status.n_positions = 0
-        strategy_status.LOB = 0
+        strategy_status.last_open_basis = 0
         self._update_strategy_status(strategy_status)
 
         # notify

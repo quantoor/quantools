@@ -120,10 +120,10 @@ class LimitOrder:
 
 
 class StrategyStatus:
-    def __init__(self):
-        self.coin: str = ''
-        self.expiry: str = ''
-        self.LOB: float = 0.
+    def __init__(self, coin: str = '', expiry: str = ''):
+        self.coin: str = coin
+        self.expiry: str = expiry
+        self.last_open_basis: float = 0.
         self.perp_size: float = 0.
         self.fut_size: float = 0.
         self.n_positions: int = 0
@@ -133,31 +133,31 @@ class StrategyStatus:
         return {
             "coin": self.coin,
             "expiry": self.expiry,
-            "LOB": self.LOB,
+            "LOB": self.last_open_basis,
             "perp_size": self.perp_size,
             "fut_size": self.fut_size,
             "n_positions": self.n_positions,
-            "last_time_updated": self.last_time_udpated
+            "LTU": self.last_time_udpated
         }
 
     def from_dict(self, res: dict):
         self.coin = res['coin']
         self.expiry = res['expiry']
-        self.LOB = res['LOB']
+        self.last_open_basis = res['LOB']
         self.perp_size = res['perp_size']
         self.fut_size = res['fut_size']
         self.n_positions = res['n_positions']
-        self.last_time_udpated = res['last_time_updated']
+        self.last_time_udpated = res['LTU']
         return self
 
     def __str__(self):
         return "{" \
-               f"coin: {self.coin}-{self.expiry}," \
-               f"LOB: {self.LOB}," \
-               f"perp_size: {self.perp_size}," \
-               f"fut_size: {self.fut_size}," \
-               f"n_positions: {self.n_positions}," \
-               f"last_time_updated: {self.last_time_udpated}" \
+               f"coin: {self.coin}, " \
+               f"LOB: {self.last_open_basis}, " \
+               f"perp_size: {self.perp_size}, " \
+               f"fut_size: {self.fut_size}, " \
+               f"n_positions: {self.n_positions}, " \
+               f"LTU: {self.last_time_udpated}" \
                "}"
 
 

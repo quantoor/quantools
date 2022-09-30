@@ -1,3 +1,5 @@
+import datetime
+
 import importer
 import streamlit as st
 from common import util
@@ -9,13 +11,15 @@ import time
 import pandas as pd
 import asyncio
 from classes import TickerCombo
+import matplotlib.pyplot as plt
+
 
 ws_client = FtxWebsocketClient()
 connector_rest = FtxConnectorRest(cfg.API_KEY, cfg.API_SECRET, cfg.SUB_ACCOUNT)
 
 EXPIRY = '0930'
 
-MODES = ('Market Overview', 'Positions', 'Manual Trading')
+MODES = ('Market Overview', 'Positions', 'Manual Trading', 'Funding')
 
 # CSS to inject contained in a string
 hide_table_row_index = """
@@ -36,14 +40,15 @@ def main():
     modes = {
         MODES[0]: lambda: show_market_overview(),
         MODES[1]: lambda: show_positions(),
-        MODES[2]: lambda: show_manual_trading()
+        MODES[2]: lambda: show_manual_trading(),
+        MODES[3]: lambda: show_funding()
     }
 
     modes[mode]()
 
 
 _active_futures = util.get_active_futures_with_expiry()
-_expiry = '0930'
+_expiry = '1230'
 _coins = [coin for coin in _active_futures[_expiry] if coin not in cfg.BLACKLIST]
 fundings = {coin: None for coin in _coins}
 
@@ -89,15 +94,15 @@ def _market_overview():
 
             ticker_combo = TickerCombo(coin, _expiry, perp_ticker, fut_ticker)
 
-            if abs(ticker_combo.adj_basis_open) > 1:
-                market_data.append({
-                    'Coin': coin,
-                    'Perp Price': perp_ticker.mark,
-                    'Fut Price': fut_ticker.mark,
-                    'Basis': ticker_combo.basis,
-                    'Adj Basis Open': ticker_combo.adj_basis_open,
-                    'Funding': None,  # util.get_funding_rate_avg_24h(perp_symbol)
-                })
+            # if abs(ticker_combo.adj_basis_open) > 1:
+            market_data.append({
+                'Coin': coin,
+                'Perp Price': perp_ticker.mark,
+                'Fut Price': fut_ticker.mark,
+                'Basis': ticker_combo.basis,
+                # 'Adj Basis Open': ticker_combo.adj_basis_open,
+                # 'Funding': None,  # util.get_funding_rate_avg_24h(perp_symbol)
+            })
 
         df = pd.DataFrame(market_data)
         data_table.table(df)
@@ -182,6 +187,28 @@ def show_manual_trading():
             # buy future, sell perp
             connector_rest.place_order_limit(fut_symbol, True, fut_ticker.ask / offset, size)
             connector_rest.place_order_limit(perp_symbol, False, perp_ticker.bid * offset, size)
+
+
+def show_funding():
+    st.title(MODES[3])
+
+    perps = [""] + [c + '-PERP' for c in _coins]
+    perp = st.selectbox('Perp', perps)
+    if not perp:
+        return
+
+    n_days = st.number_input('Days', min_value=1, max_value=30, value=7)
+
+    ts = util.timestamp_now()
+    ts_vec, fundings_vec = util.get_historical_funding(perp, ts - n_days * 24 * 3600, ts)
+    date_vec = [datetime.datetime.fromtimestamp(t).isoformat() for t in ts_vec]
+    print(date_vec)
+    fundings_annualized_vec = [f * 24 * 365 / 100 for f in fundings_vec]
+
+    fig, ax = plt.subplots()
+    ax.plot(date_vec, fundings_annualized_vec)
+    ax.set_xticklabels(fundings_annualized_vec, rotation=45, fontsize=8)
+    st.pyplot(fig)
 
 
 main()
