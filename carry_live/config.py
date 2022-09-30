@@ -35,7 +35,6 @@ with open('./config.json') as f:
     WHITELIST = sorted(data['whitelist'])
     EXPIRY = data['expiry']
     REFRESH_TIME = data['refresh_time']
-    LIVE_TRADE = data['live_trade']
 
     strategy = data['strategy']
     TRADE_SIZE_USD = strategy['trade_size_usd']

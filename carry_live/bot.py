@@ -72,15 +72,11 @@ class StrategyManager:
         basis_open = ticker_combo.get_basis_open(ticker_combo.basis_type)
 
         if (basis_close is not None) and (abs(basis_close) < 0.1 or basis_close * strategy_status.last_open_basis < 0):
-            if cfg.LIVE_TRADE:
-                try:
-                    self._close_position(ticker_combo, strategy_status)
-                except Exception as e:
-                    msg = f'Could not close position for {coin}: {e}'
-                    _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
-            else:
-                msg = f'{coin} basis close: {round(basis_close, 2)}, strategy status: {strategy_status} → could close position'
-                _notify(TgMsg(coin, TG_CAN_CLOSE, msg, logging.INFO))
+            try:
+                self._close_position(ticker_combo, strategy_status)
+            except Exception as e:
+                msg = f'Could not close position for {coin}: {e}'
+                _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
 
         elif (basis_open is not None) and abs(basis_open) > abs(strategy_status.last_open_basis + cfg.THRESHOLD_INCREMENT):
             if strategy_status.n_positions >= cfg.MAX_N_POSITIONS:
@@ -88,29 +84,21 @@ class StrategyManager:
                 _notify(TgMsg(coin, TG_REACHED_MAX_POSITIONS, msg, logging.INFO))
                 return
 
-            if cfg.LIVE_TRADE:
-                try:
-                    self._open_position(ticker_combo, strategy_status, basis_open)
-                except Exception as e:
-                    msg = f'Could not open position for {coin}: {e}'
-                    _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
-            else:
-                msg = f'{coin} basis open: {round(basis_open, 2)}, strategy status: {strategy_status} → could increment position'
-                _notify(TgMsg(coin, TG_CAN_INCREMENT, msg, logging.INFO))
+            try:
+                self._open_position(ticker_combo, strategy_status, basis_open)
+            except Exception as e:
+                msg = f'Could not open position for {coin}: {e}'
+                _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
 
     def _handle_no_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus) -> None:
         coin = ticker_combo.coin
         basis_open = ticker_combo.get_basis_open(ticker_combo.basis_type)
         if (basis_open is not None) and abs(basis_open) > cfg.THRESHOLD_INCREMENT:
-            if cfg.LIVE_TRADE:
-                try:
-                    self._open_position(ticker_combo, strategy_status, basis_open)
-                except Exception as e:
-                    msg = f'Could not open position for {coin}: {e}'
-                    _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
-            else:
-                msg = f'{coin} basis open: {round(basis_open, 2)}, strategy status: {strategy_status} → could open position'
-                _notify(TgMsg(coin, TG_CAN_OPEN, msg, logging.INFO))
+            try:
+                self._open_position(ticker_combo, strategy_status, basis_open)
+            except Exception as e:
+                msg = f'Could not open position for {coin}: {e}'
+                _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
 
     def _is_position_open(self, coin: str, expiry: str) -> Tuple[bool, BasisType]:
         perp_pos = self._get_position(util.get_perp_symbol(coin))
