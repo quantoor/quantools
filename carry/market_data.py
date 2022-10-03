@@ -26,9 +26,13 @@ class CarryMarketData:
 
     def download(self) -> None:
         expiry_ts = util.get_expiration_ts_from_str(self._expiry)
+        expiry_ts = min(util.timestamp_now(), expiry_ts)
 
         # get future prices
         self.timestamps, self.fut_prices = util.get_historical_prices(self._fut_symbol, self._resolution, 0, expiry_ts)
+
+        if len(self.timestamps) == 0:
+            raise Exception(f'could not download market data for {self._coin}')
 
         # start timestamp - skip the first 5 hours
         start_ts = self.timestamps[4]
