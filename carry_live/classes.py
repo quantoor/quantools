@@ -173,3 +173,11 @@ class Trade:
         self.maker: bool = res['liquidity'] == 'maker'
         self.timestamp: int = int(datetime.fromisoformat(res['time']).timestamp() * 1000)
         self.date: str = res['time']
+
+
+class FundingPayment:
+    def __init__(self, res: dict):
+        self.future = res['future']
+        self.payment = res['payment']
+        self.timestamp = res['time']
+        self.rate = res['rate']

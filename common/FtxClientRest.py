@@ -306,10 +306,11 @@ class FtxClient:
     def get_all_funding_rates(self) -> List[dict]:
         return self._get('funding_rates')
 
-    def get_funding_payments(self, start_time: float = None, end_time: float = None) -> List[dict]:
+    def get_funding_payments(self, start_time: float = None, end_time: float = None, future: str = None) -> List[dict]:
         return self._get('funding_payments', {
             'start_time': start_time,
-            'end_time': end_time
+            'end_time': end_time,
+            'future': future
         })
 
     def create_subaccount(self, nickname: str) -> dict:

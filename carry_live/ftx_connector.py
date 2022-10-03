@@ -49,6 +49,11 @@ class FtxConnectorRest:
                                      order_id=order_id)
         return [Trade(trade) for trade in res]
 
+    def get_funding_payments(self, future: str, start_ts: Optional[int] = None, end_ts: Optional[int] = None) \
+            -> [List[FundingPayment]]:
+        res = self._client.get_funding_payments(start_ts, end_ts, future)
+        return [FundingPayment(r) for r in res]
+
 
 class FtxConnectorWs:
     def __init__(self, api_key: str = '', api_secret: str = ''):
