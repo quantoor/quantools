@@ -1,11 +1,11 @@
 from ftx_connector import FtxConnectorRest, FtxConnectorWs
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 from classes import *
 from common.logger import logger
 from telegram_bot import *
 import config as cfg
 import logging
-from redis_client import RedisClient
+from firestore_client import FirestoreClient
 from common import util
 
 
@@ -45,14 +45,14 @@ class StrategyManager:
         self._offset = 1 + cfg.SPREAD_OFFSET / 100
         self._positions = None
         self._rest_manager = RestManager()
-        self._redis_client = RedisClient()
+        self._firestore_client = FirestoreClient()
 
     def process_ticker(self, ticker_combo: TickerCombo) -> None:
         coin = ticker_combo.coin
         expiry = ticker_combo.expiry
 
         # load strategy status
-        strategy_status = self._redis_client.get(coin)
+        strategy_status = self._firestore_client.get(coin)
         if strategy_status is None:
             strategy_status = StrategyStatus(coin, expiry)
 
@@ -78,7 +78,8 @@ class StrategyManager:
                 msg = f'Could not close position for {coin}: {e}'
                 _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
 
-        elif (basis_open is not None) and abs(basis_open) > abs(strategy_status.last_open_basis + cfg.THRESHOLD_INCREMENT):
+        elif (basis_open is not None) and abs(basis_open) > abs(
+                strategy_status.last_open_basis + cfg.THRESHOLD_INCREMENT):
             if strategy_status.n_positions >= cfg.MAX_N_POSITIONS:
                 msg = f'{coin} basis open: {round(basis_open, 2)}, strategy status: {strategy_status} → could increment position, but max n positions reached'
                 _notify(TgMsg(coin, TG_REACHED_MAX_POSITIONS, msg, logging.INFO))
@@ -210,7 +211,7 @@ class StrategyManager:
         strategy_status.perp_size = None if perp_pos is None else perp_pos.size
         strategy_status.fut_size = None if fut_pos is None else fut_pos.size
         strategy_status.last_time_udpated = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
-        self._redis_client.set(strategy_status)
+        self._firestore_client.set(strategy_status)
 
     def update_positions(self):
         self._positions = self._rest_manager.get_positions()
