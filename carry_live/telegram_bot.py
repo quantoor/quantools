@@ -2,6 +2,8 @@ import telegram
 import config
 import time
 import logging
+from datetime import datetime
+
 
 _level_dict = {
     logging.INFO: 'INFO',
@@ -10,7 +12,9 @@ _level_dict = {
 }
 
 TG_CAN_OPEN = 'can_open'
+TG_CAN_INCREMENT = 'can_increment'
 TG_CAN_CLOSE = 'can_close'
+TG_REACHED_MAX_POSITIONS = 'reached_max_positions'
 TG_ERROR = 'error'
 TG_ALWAYS_NOTIFY = 'always_notify'
 
@@ -31,7 +35,8 @@ class TgBot:
 
     def send(self, tg_msg: TgMsg) -> None:
         if self._enough_time_passed(tg_msg):
-            msg = f'[{_level_dict[tg_msg.level]}] {tg_msg.msg}'
+            ts = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+            msg = f'[{ts}] [{_level_dict[tg_msg.level]}] {tg_msg.msg}'
             self._bot.sendMessage(chat_id=self._chat_id, text=msg)
 
     def _enough_time_passed(self, msg: TgMsg) -> bool:

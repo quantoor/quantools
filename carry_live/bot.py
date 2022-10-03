@@ -1,23 +1,26 @@
 from ftx_connector import FtxConnectorRest, FtxConnectorWs
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from classes import *
 from common.logger import logger
 from telegram_bot import *
 import config as cfg
 import logging
+from redis_client import RedisClient
+from common import util
 
 
 def _notify(tg_msg: TgMsg):
     tg_bot.send(tg_msg)
     level = tg_msg.level
+    msg = tg_msg.msg
     if level == logging.INFO:
-        logger.info(tg_msg.msg)
+        logger.info(msg)
     elif level == logging.WARNING:
-        logger.warning(tg_msg.msg)
+        logger.warning(msg)
     elif level == logging.ERROR:
-        logger.error(tg_msg.msg)
+        logger.error(msg)
     else:
-        raise Exception(f'Logger level {level} not valid for notification')
+        logger.error(f'Logger level {level} not valid for notification. {msg}')
 
 
 class CarryBot:
@@ -39,78 +42,79 @@ class CarryBot:
 
 class StrategyManager:
     def __init__(self):
-        self._offset = cfg.SPREAD_OFFSET
+        self._offset = 1 + cfg.SPREAD_OFFSET / 100
         self._positions = None
-        self._cache = None
         self._rest_manager = RestManager()
+        self._redis_client = RedisClient()
 
     def process_ticker(self, ticker_combo: TickerCombo) -> None:
         coin = ticker_combo.coin
         expiry = ticker_combo.expiry
-        basis = ticker_combo.basis
-        adj_basis_open = ticker_combo.adj_basis_open
-        adj_basis_close = ticker_combo.adj_basis_close
 
-        # todo refactor this
-        self._cache = StrategyCache()
-        self._cache.current_open_threshold = cfg.INIT_OPEN_THRESHOLD
-        self._cache.read(f'{cfg.CACHE_FOLDER}/{coin}.json')
+        # load strategy status
+        strategy_status = self._redis_client.get(coin)
+        if strategy_status is None:
+            strategy_status = StrategyStatus(coin, expiry)
 
-        is_position_open = self._is_position_open(coin, expiry)
-        if is_position_open and abs(adj_basis_close) < 0.1:  # todo remove hardcoding
-            if cfg.LIVE_TRADE:
-                try:
-                    if self._close_position(ticker_combo):
-                        _notify(TgMsg(coin, TG_ALWAYS_NOTIFY, f'Closed trade for {coin}', logging.INFO))
-                except Exception as e:
-                    _notify(TgMsg(coin, TG_ERROR, f'Could not close trade for {coin}: {e}', logging.ERROR))
-            else:
-                _notify(
-                    TgMsg(coin,
-                          TG_CAN_CLOSE,
-                          f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and could close a trade',
-                          logging.INFO))
+        # check current position
+        is_position_open, open_basis_type = self._is_position_open(coin, expiry)
+        if is_position_open:
+            if open_basis_type == BasisType.UNDEFINED:
+                logger.error(f'Basis for open position for {coin} is not defined')
+                return
+            self._handle_open_position(ticker_combo, strategy_status)
+        else:
+            self._handle_no_position(ticker_combo, strategy_status)
 
-        elif is_position_open and abs(abs(adj_basis_close) - self._cache.last_open_basis) > 5:  # todo remove hardcoding
-            _notify(
-                TgMsg(coin,
-                      TG_CAN_CLOSE,
-                      f'{coin} basis is {round(basis, 2)} ({round(adj_basis_close, 2)}) and has decreased more than 5 points',
-                      logging.INFO))
+    def _handle_open_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus) -> None:
+        coin = ticker_combo.coin
+        basis_close = ticker_combo.get_basis_close(ticker_combo.basis_type)
+        basis_open = ticker_combo.get_basis_open(ticker_combo.basis_type)
 
-        elif abs(adj_basis_open) > self._cache.current_open_threshold:
-            if cfg.LIVE_TRADE:
-                try:
-                    if self._open_position(ticker_combo):
-                        _notify(TgMsg(coin, TG_ALWAYS_NOTIFY, f'Opened trade for {coin}', logging.INFO))
-                except Exception as e:
-                    _notify(TgMsg(coin, TG_ERROR, f'Could not open trade for {coin}: {e}', logging.ERROR))
-            else:
-                _notify(
-                    TgMsg(coin,
-                          TG_CAN_OPEN,
-                          f'{coin} basis is {round(basis, 2)} ({round(adj_basis_open, 2)}) and could open a trade',
-                          logging.INFO))
+        if (basis_close is not None) and (abs(basis_close) < 0.1 or basis_close * strategy_status.last_open_basis < 0):
+            try:
+                self._close_position(ticker_combo, strategy_status)
+            except Exception as e:
+                msg = f'Could not close position for {coin}: {e}'
+                _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
 
-        # todo refactor this
+        elif (basis_open is not None) and abs(basis_open) > abs(strategy_status.last_open_basis + cfg.THRESHOLD_INCREMENT):
+            if strategy_status.n_positions >= cfg.MAX_N_POSITIONS:
+                msg = f'{coin} basis open: {round(basis_open, 2)}, strategy status: {strategy_status} → could increment position, but max n positions reached'
+                _notify(TgMsg(coin, TG_REACHED_MAX_POSITIONS, msg, logging.INFO))
+                return
+
+            try:
+                self._open_position(ticker_combo, strategy_status, basis_open)
+            except Exception as e:
+                msg = f'Could not open position for {coin}: {e}'
+                _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
+
+    def _handle_no_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus) -> None:
+        coin = ticker_combo.coin
+        basis_open = ticker_combo.get_basis_open(ticker_combo.basis_type)
+        if (basis_open is not None) and abs(basis_open) > cfg.THRESHOLD_INCREMENT:
+            try:
+                self._open_position(ticker_combo, strategy_status, basis_open)
+            except Exception as e:
+                msg = f'Could not open position for {coin}: {e}'
+                _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
+
+    def _is_position_open(self, coin: str, expiry: str) -> Tuple[bool, BasisType]:
         perp_pos = self._get_position(util.get_perp_symbol(coin))
         fut_pos = self._get_position(util.get_future_symbol(coin, expiry))
-        self._cache.perp_size = None if perp_pos is None else perp_pos.size
-        self._cache.fut_size = None if fut_pos is None else fut_pos.size
-        if self._cache.perp_size is not None or self._cache.fut_size is not None:
-            self._cache.coin = coin
-            self._cache.basis = basis
-            self._cache.adj_basis_open = adj_basis_open
-            self._cache.adj_basis_close = adj_basis_close
-            self._cache.funding = util.get_funding_rate_avg_24h(util.get_perp_symbol(coin))
-            self._cache.write()
 
-    def _is_position_open(self, coin: str, expiry: str) -> bool:
-        perp_pos = self._get_position(util.get_perp_symbol(coin))
-        fut_pos = self._get_position(util.get_future_symbol(coin, expiry))
-        return perp_pos is not None or fut_pos is not None
+        if perp_pos is None or fut_pos is None:
+            return False, BasisType.UNDEFINED
 
-    def _open_position(self, ticker_combo: TickerCombo) -> bool:
+        if not perp_pos.is_long and fut_pos.is_long:
+            return True, BasisType.CONTANGO
+        elif perp_pos.is_long and not fut_pos.is_long:
+            return True, BasisType.BACKWARDATION
+        else:
+            return True, BasisType.UNDEFINED
+
+    def _open_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus, basis_open: float) -> None:
         perp_symbol = util.get_perp_symbol(ticker_combo.coin)
         fut_symbol = util.get_future_symbol(ticker_combo.coin, ticker_combo.expiry)
 
@@ -121,11 +125,11 @@ class StrategyManager:
         open_orders = self._rest_manager.get_open_orders()
         for order in open_orders:
             if order.market in [perp_symbol, fut_symbol]:
-                return False
+                return
 
         size = cfg.TRADE_SIZE_USD / max(perp_ticker.mark, fut_ticker.mark)
 
-        if ticker_combo.is_contango:
+        if ticker_combo.basis_type == BasisType.CONTANGO:
             # sell perp, buy future
             ask_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.bid * self._offset, size=size, is_buy=False)
             bid_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.ask / self._offset, size=size, is_buy=True)
@@ -141,14 +145,16 @@ class StrategyManager:
             self._rest_manager.cancel_order(order_id)
             raise Exception(str(e))
 
-        adj_basis_open = ticker_combo.adj_basis_open
-        self._cache.last_open_basis = abs(adj_basis_open)
-        self._cache.current_open_threshold = max(adj_basis_open,
-                                                 self._cache.current_open_threshold + cfg.THRESHOLD_INCREMENT)
-        self.update_positions()
-        return True
+        # update strategy status
+        strategy_status.n_positions += 1
+        strategy_status.last_open_basis = basis_open
+        self._update_strategy_status(strategy_status)
 
-    def _close_position(self, ticker_combo: TickerCombo) -> bool:
+        # notify
+        msg = f'Opened position for {ticker_combo.coin}. Strategy status: {strategy_status}'
+        _notify(TgMsg(ticker_combo.coin, TG_ALWAYS_NOTIFY, msg, logging.INFO))
+
+    def _close_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus) -> None:
         perp_symbol = util.get_perp_symbol(ticker_combo.coin)
         fut_symbol = util.get_future_symbol(ticker_combo.coin, ticker_combo.expiry)
 
@@ -159,7 +165,7 @@ class StrategyManager:
         open_orders = self._rest_manager.get_open_orders()
         for order in open_orders:
             if order.market in [perp_symbol, fut_symbol]:
-                return False
+                return
 
         perp_pos = self._get_position(perp_symbol)
         if perp_pos.is_long:
@@ -180,16 +186,31 @@ class StrategyManager:
             self._rest_manager.cancel_order(order_id)
             raise Exception(str(e))
 
-        self._cache.last_open_basis = 0
-        self._cache.current_open_threshold = cfg.INIT_OPEN_THRESHOLD
-        self.update_positions()
-        return True
+        # update strategy status
+        strategy_status.n_positions = 0
+        strategy_status.last_open_basis = 0
+        self._update_strategy_status(strategy_status)
+
+        # notify
+        msg = f'Closed position for {ticker_combo.coin}. Strategy status: {strategy_status}'
+        _notify(TgMsg(ticker_combo.coin, TG_ALWAYS_NOTIFY, msg, logging.INFO))
 
     def _get_position(self, symbol: str) -> Optional[Position]:
         position = [*filter(lambda x: x.symbol == symbol, self._positions)]
         if len(position) == 0:
             return None
         return position[0]
+
+    def _update_strategy_status(self, strategy_status: StrategyStatus) -> None:
+        self.update_positions()
+        coin = strategy_status.coin
+        perp_pos = self._get_position(util.get_perp_symbol(coin))
+        fut_pos = self._get_position(util.get_future_symbol(coin, strategy_status.expiry))
+
+        strategy_status.perp_size = None if perp_pos is None else perp_pos.size
+        strategy_status.fut_size = None if fut_pos is None else fut_pos.size
+        strategy_status.last_time_udpated = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+        self._redis_client.set(strategy_status)
 
     def update_positions(self):
         self._positions = self._rest_manager.get_positions()

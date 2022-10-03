@@ -13,5 +13,8 @@ if __name__ == '__main__':
     logger.add_file(cfg.LOG_FOLDER)
     logger.info(f'Start CarryBot v{__version__}')
 
+    active_futures = util.get_active_futures_with_expiry()
+    coins = [coin for coin in active_futures[cfg.EXPIRY] if coin not in cfg.BLACKLIST]
+
     bot = CarryBot()
-    bot.start(cfg.WHITELIST, cfg.EXPIRY)
+    bot.start(coins, cfg.EXPIRY)

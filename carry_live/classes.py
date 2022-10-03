@@ -1,8 +1,6 @@
-from typing import Dict, Any
-import json
-from common import util
-from common.logger import logger
+from typing import Dict, Any, Optional
 from datetime import datetime
+from enum import Enum
 
 
 class WsTicker:
@@ -18,6 +16,12 @@ class WsTicker:
         # self.time: float = res['time']
 
 
+class BasisType(Enum):
+    CONTANGO = 1
+    BACKWARDATION = 2
+    UNDEFINED = 3
+
+
 class TickerCombo:
     def __init__(self, coin: str, expiry: str, perp_ticker: WsTicker, fut_ticker: WsTicker):
         self.coin = coin
@@ -28,17 +32,35 @@ class TickerCombo:
         fut_bid, fut_mark, fut_ask = fut_ticker.bid, fut_ticker.mark, fut_ticker.ask
         perp_bid, perp_mark, perp_ask = perp_ticker.bid, perp_ticker.mark, perp_ticker.ask
 
-        fut_spread = fut_ask - fut_bid
-        perp_spread = perp_ask - perp_bid
+        self.basis = self._get_basis(perp_mark, fut_mark)
 
-        carry_spread = fut_mark - perp_mark
-        self.basis = carry_spread / perp_mark * 100
-        self.is_contango = self.basis > 0
+        if perp_bid > fut_ask:
+            self.basis_type = BasisType.CONTANGO
+        elif fut_bid > perp_ask:
+            self.basis_type = BasisType.BACKWARDATION
+        else:
+            self.basis_type = BasisType.UNDEFINED
 
-        self.adj_basis_open = (carry_spread - fut_spread / 2 - perp_spread / 2) / perp_mark * 100
-        self.adj_basis_close = (carry_spread + fut_spread / 2 + perp_spread / 2) / perp_mark * 100
-        if not self.is_contango:
-            self.adj_basis_open, self.adj_basis_close = self.adj_basis_close, self.adj_basis_open
+    @staticmethod
+    def _get_basis(x, y):
+        mid = (x + y) / 2
+        return (x - y) / mid * 100
+
+    def get_basis_open(self, basis_type: BasisType) -> Optional[float]:
+        if basis_type == BasisType.CONTANGO:
+            return self._get_basis(self.perp_ticker.bid, self.fut_ticker.ask)
+        elif basis_type == BasisType.BACKWARDATION:
+            return self._get_basis(self.fut_ticker.bid, self.perp_ticker.ask)
+        else:
+            return None
+
+    def get_basis_close(self, basis_type: BasisType) -> Optional[float]:
+        if basis_type == BasisType.CONTANGO:
+            return self._get_basis(self.perp_ticker.ask, self.fut_ticker.bid)
+        elif basis_type == BasisType.BACKWARDATION:
+            return self._get_basis(self.fut_ticker.ask, self.perp_ticker.bid)
+        else:
+            return None
 
 
 class Position:
@@ -97,53 +119,46 @@ class LimitOrder:
         return f'symbol: {self.symbol}, price: {self.price}, size: {self.size}, is_buy: {self.is_buy}'
 
 
-class StrategyCache:
-    def __init__(self):
-        self._path: str = ''
-        self.coin: str = ''
+class StrategyStatus:
+    def __init__(self, coin: str = '', expiry: str = ''):
+        self.coin: str = coin
+        self.expiry: str = expiry
         self.last_open_basis: float = 0.
-        self.current_open_threshold: float = 0.
         self.perp_size: float = 0.
         self.fut_size: float = 0.
-        self.basis: float = 0.
-        self.adj_basis_open: float = 0.
-        self.adj_basis_close: float = 0.
-        self.funding: float = 0.
-
-    def read(self, path: str):
-        self._path = path
-        if util.file_exists(self._path):
-            try:
-                with open(self._path, 'r') as f:
-                    data = json.load(f)
-                    self.coin = data['coin']
-                    self.last_open_basis = data['last_open_basis']
-                    self.current_open_threshold = data['current_open_threshold']
-                    self.perp_size = data['perp_size']
-                    self.fut_size = data['fut_size']
-                    self.basis = data['basis']
-                    self.adj_basis_open = data['adj_basis_open']
-                    self.adj_basis_close = data['adj_basis_close']
-                    self.funding = data['funding']
-            except Exception as e:
-                logger.error(f'Could not read cache at path {path}: {e}')
-
-    def write(self):
-        with open(self._path, 'w') as f:
-            f.write(json.dumps(self.to_dict()))
+        self.n_positions: int = 0
+        self.last_time_udpated: str = ''
 
     def to_dict(self):
         return {
             "coin": self.coin,
-            "last_open_basis": self.last_open_basis,
-            "current_open_threshold": self.current_open_threshold,
+            "expiry": self.expiry,
+            "LOB": self.last_open_basis,
             "perp_size": self.perp_size,
             "fut_size": self.fut_size,
-            "basis": self.basis,
-            "adj_basis_open": self.adj_basis_open,
-            "adj_basis_close": self.adj_basis_close,
-            "funding": self.funding
+            "n_positions": self.n_positions,
+            "LTU": self.last_time_udpated
         }
+
+    def from_dict(self, res: dict):
+        self.coin = res['coin']
+        self.expiry = res['expiry']
+        self.last_open_basis = res['LOB']
+        self.perp_size = res['perp_size']
+        self.fut_size = res['fut_size']
+        self.n_positions = res['n_positions']
+        self.last_time_udpated = res['LTU']
+        return self
+
+    def __str__(self):
+        return "{" \
+               f"coin: {self.coin}, " \
+               f"LOB: {self.last_open_basis}, " \
+               f"perp_size: {self.perp_size}, " \
+               f"fut_size: {self.fut_size}, " \
+               f"n_positions: {self.n_positions}, " \
+               f"LTU: {self.last_time_udpated}" \
+               "}"
 
 
 class Trade:

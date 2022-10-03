@@ -4,8 +4,9 @@ from classes import Trade, Position
 
 class DbClient:
     TRADES_RAW_TABLE = 'trades_raw'
-    POSITIONS_TABLE = 'positions'
     TRADES_TABLE = 'trades'
+    TRADE_BASIS = 'trades_basis'
+    POSITIONS_TABLE = 'positions'
 
     def __init__(self, db_full_path: str):
         self._conn = sqlite3.connect(db_full_path)
@@ -87,21 +88,46 @@ class DbClient:
                         SUM(price * amount) / SUM(amount) as price,
                         SUM(amount) as amount,
                         SUM(fee) as fee,
-                        MIN(timestamp) as timestmap
-                    FROM
-                        {self.TRADES_RAW_TABLE}
-                    GROUP BY
-                        order_id;
+                        MIN(timestamp) / 1000 as timestamp
+                    FROM {self.TRADES_RAW_TABLE}
+                    GROUP BY order_id
+                    ORDER BY timestamp ASC;
                     '''
+        cur = self._conn.cursor()
+        cur.execute(query)
+        trades_raw = cur.fetchall()
+
+        for trade_raw in trades_raw:
+            self.insert_trade(*trade_raw)
+
+    def get_all_trades(self):
+        query = f'''SELECT
+                    instrument,
+                    side,
+                    price,
+                    amount,
+                    fee,
+                    timestamp
+                FROM {self.TRADES_TABLE}
+                ORDER BY timestamp ASC;
+                '''
         cur = self._conn.cursor()
         cur.execute(query)
         trades = cur.fetchall()
 
-        for trade in trades:
-            self.insert_trade(*trade)
+        trades_dict = {}
 
-    # def get_trade(self):
-    #     query = f'''SELECT * FROM {self.TRADES_TABLE};'''
-    #     cur = self._conn.cursor()
-    #     cur.execute(query)
-    #     return cur.fetchall()
+        for trade in trades:
+            instrument, side, price, amount, fee, timestamp = trade
+            tmp = {"side": side, "price": price, "amount": amount, "fee": fee, "timestamp": timestamp}
+            if instrument in trades_dict:
+                trades_dict[instrument].append(tmp)
+            else:
+                trades_dict[instrument] = [tmp]
+
+        return trades_dict
+
+
+db_client = DbClient('./db/30SEP22.db')
+trades_ = db_client.get_all_trades()
+print(trades_)
