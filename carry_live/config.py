@@ -1,6 +1,4 @@
-from typing import List
 import json
-from firestore_client import FirestoreClient
 
 
 with open('./config.json') as f:
@@ -18,12 +16,4 @@ with open('./config.json') as f:
     TELEGRAM_TOKEN: str = telegram['token']
     TELEGRAM_CHAT_ID: int = telegram['chat_id']
 
-    settings = FirestoreClient().get_strategy_settings()
-    BLACKLIST: List[str] = settings['blacklist']
-    WHITELIST: List[str] = settings['whitelist']
-    EXPIRY: str = settings['expiration']
-    REFRESH_TIME: int = settings['refresh_time']
-    TRADE_SIZE_USD: float = settings['trade_size_usd']
-    THRESHOLD_INCREMENT: float = settings['threshold_increment']
-    MAX_N_POSITIONS: int = settings['max_n_positions']
-    SPREAD_OFFSET: float = settings['spread_offset']
+    REFRESH_TIME: int = data['refresh_time']

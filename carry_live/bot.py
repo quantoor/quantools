@@ -36,20 +36,30 @@ class CarryBot:
     def _receive_tickers(self, tickers: List[TickerCombo]) -> None:
         logger.debug('Receive tickers')
         self._strategy_manager.update_positions()
+        settings = FirestoreClient().get_strategy_settings()
+
+        if not settings.active:
+            return
+
         for ticker_combo in tickers:
-            self._strategy_manager.process_ticker(ticker_combo)
+            self._strategy_manager.process_ticker(ticker_combo, settings)
 
 
 class StrategyManager:
     def __init__(self):
-        self._offset = 1 + cfg.SPREAD_OFFSET / 100
-        self._positions = None
         self._rest_manager = RestManager()
         self._firestore_client = FirestoreClient()
+        self._positions = None
+        self._offset: float = 0.
+        self._settings: StrategySettings = StrategySettings()
 
-    def process_ticker(self, ticker_combo: TickerCombo) -> None:
+    def process_ticker(self, ticker_combo: TickerCombo, settings) -> None:
         coin = ticker_combo.coin
         expiry = ticker_combo.expiry
+
+        # set settings
+        self._settings = settings
+        self._offset = 1 + settings.spread_offset / 100
 
         # load strategy status
         strategy_status = self._firestore_client.get_strategy_status(coin)
@@ -79,8 +89,8 @@ class StrategyManager:
                 _notify(TgMsg(coin, TG_ERROR, msg, logging.ERROR))
 
         elif (basis_open is not None) and abs(basis_open) > abs(
-                strategy_status.last_open_basis + cfg.THRESHOLD_INCREMENT):
-            if strategy_status.n_positions >= cfg.MAX_N_POSITIONS:
+                strategy_status.last_open_basis + self._settings.threshold_increment):
+            if strategy_status.n_positions >= self._settings.max_n_positions:
                 msg = f'{coin} basis open: {round(basis_open, 2)}, strategy status: {strategy_status} → could increment position, but max n positions reached'
                 _notify(TgMsg(coin, TG_REACHED_MAX_POSITIONS, msg, logging.INFO))
                 return
@@ -94,7 +104,7 @@ class StrategyManager:
     def _handle_no_position(self, ticker_combo: TickerCombo, strategy_status: StrategyStatus) -> None:
         coin = ticker_combo.coin
         basis_open = ticker_combo.get_basis_open(ticker_combo.basis_type)
-        if (basis_open is not None) and abs(basis_open) > cfg.THRESHOLD_INCREMENT:
+        if (basis_open is not None) and abs(basis_open) > self._settings.threshold_increment:
             try:
                 self._open_position(ticker_combo, strategy_status, basis_open)
             except Exception as e:
@@ -128,7 +138,7 @@ class StrategyManager:
             if order.market in [perp_symbol, fut_symbol]:
                 return
 
-        size = cfg.TRADE_SIZE_USD / max(perp_ticker.mark, fut_ticker.mark)
+        size = self._settings.trade_size_usd / max(perp_ticker.mark, fut_ticker.mark)
 
         if ticker_combo.basis_type == BasisType.CONTANGO:
             # sell perp, buy future
@@ -171,12 +181,12 @@ class StrategyManager:
         perp_pos = self._get_position(perp_symbol)
         if perp_pos.is_long:
             # sell perp, buy future
-            size = perp_ticker.mark / cfg.TRADE_SIZE_USD
+            size = perp_ticker.mark / self._settings.trade_size_usd
             ask_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.bid * self._offset, size=size, is_buy=False)
             bid_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.ask / self._offset, size=size, is_buy=True)
         else:
             # sell future, buy perp
-            size = fut_ticker.mark / cfg.TRADE_SIZE_USD
+            size = fut_ticker.mark / self._settings.trade_size_usd
             ask_order = LimitOrder(symbol=fut_symbol, price=fut_ticker.bid * self._offset, size=size, is_buy=False)
             bid_order = LimitOrder(symbol=perp_symbol, price=perp_ticker.ask / self._offset, size=size, is_buy=True)
 

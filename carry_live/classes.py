@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 from enum import Enum
 
@@ -181,3 +181,26 @@ class FundingPayment:
         self.payment = res['payment']
         self.timestamp = res['time']
         self.rate = res['rate']
+
+
+class StrategySettings:
+    def __init__(self):
+        self.active = False
+        self.expiration: str = ''
+        self.trade_size_usd: float = 0
+        self.threshold_increment: float = 0
+        self.max_n_positions: int = 0
+        self.spread_offset: float = 0
+        self.whitelist: List[str] = []
+        self.blacklist: List[str] = []
+
+    def from_dict(self, res: dict):
+        self.active = res['active']
+        self.expiration = res['expiration']
+        self.trade_size_usd = res['trade_size_usd']
+        self.threshold_increment = res['threshold_increment']
+        self.max_n_positions = res['max_n_positions']
+        self.spread_offset = res['spread_offset']
+        self.whitelist = res['whitelist']
+        self.blacklist = res['blacklist']
+        return self
