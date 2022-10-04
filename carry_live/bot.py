@@ -39,6 +39,7 @@ class CarryBot:
         settings = FirestoreClient().get_strategy_settings()
 
         if not settings.active:
+            RestManager().cancel_orders()
             return
 
         for ticker_combo in tickers:
@@ -158,7 +159,7 @@ class StrategyManager:
 
         # update strategy status
         strategy_status.n_positions += 1
-        strategy_status.last_open_basis = basis_open
+        strategy_status.last_open_basis = round(basis_open, 2)
         self._update_strategy_status(strategy_status)
 
         # notify
