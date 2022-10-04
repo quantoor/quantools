@@ -20,13 +20,13 @@ class FirestoreClient:
         self._db = firestore.client()
 
     def get_strategy_settings(self):
-        if self.settings is None or (time.time() - self.settings_last_query_ts > 10):
+        if FirestoreClient.settings is None or (time.time() - FirestoreClient.settings_last_query_ts > 10):
             res = self._db.collection(self.strategy_settings).document('strategy').get()
             if not res.exists:
                 raise Exception('strategy settings not found in Firestore')
-            self.settings = res.to_dict()
-            self.settings_last_query_ts = time.time()
-        return self.settings
+            FirestoreClient.settings = res.to_dict()
+            FirestoreClient.settings_last_query_ts = time.time()
+        return FirestoreClient.settings
 
     def set_strategy_status(self, value: StrategyStatus) -> None:
         data = value.to_dict()
