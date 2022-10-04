@@ -1,43 +1,29 @@
 from typing import List
 import json
+from firestore_client import FirestoreClient
 
-CACHE_FOLDER: str
-LOG_FOLDER: str
-API_KEY: str
-API_SECRET: str
-SUB_ACCOUNT: str
-TELEGRAM_TOKEN: str
-TELEGRAM_CHAT_ID: str
-BLACKLIST: List[str]
-WHITELIST: List[str]
-REFRESH_TIME: float
-LIVE_TRADE: bool
-TRADE_SIZE_USD: float
-THRESHOLD_INCREMENT: float
-SPREAD_OFFSET: float
 
 with open('./config.json') as f:
     data = json.load(f)
 
-    CACHE_FOLDER = data['cache_folder']
-    LOG_FOLDER = data['log_folder']
+    CACHE_FOLDER: str = data['cache_folder']
+    LOG_FOLDER: str = data['log_folder']
 
     ftx = data['ftx']
-    API_KEY = ftx['api_key']
-    API_SECRET = ftx['api_secret']
-    SUB_ACCOUNT = ftx['sub_account']
+    API_KEY: str = ftx['api_key']
+    API_SECRET: str = ftx['api_secret']
+    SUB_ACCOUNT: str = ftx['sub_account']
 
     telegram = data['telegram']
-    TELEGRAM_TOKEN = telegram['token']
-    TELEGRAM_CHAT_ID = telegram['chat_id']
+    TELEGRAM_TOKEN: str = telegram['token']
+    TELEGRAM_CHAT_ID: int = telegram['chat_id']
 
-    BLACKLIST = sorted(data['blacklist'])
-    WHITELIST = sorted(data['whitelist'])
-    EXPIRY = data['expiry']
-    REFRESH_TIME = data['refresh_time']
-
-    strategy = data['strategy']
-    TRADE_SIZE_USD = strategy['trade_size_usd']
-    THRESHOLD_INCREMENT = strategy['threshold_increment']
-    MAX_N_POSITIONS = strategy['max_n_positions']
-    SPREAD_OFFSET = strategy['spread_offset']
+    settings = FirestoreClient().get_strategy_settings()
+    BLACKLIST: List[str] = settings['blacklist']
+    WHITELIST: List[str] = settings['whitelist']
+    EXPIRY: str = settings['expiration']
+    REFRESH_TIME: int = settings['refresh_time']
+    TRADE_SIZE_USD: float = settings['trade_size_usd']
+    THRESHOLD_INCREMENT: float = settings['threshold_increment']
+    MAX_N_POSITIONS: int = settings['max_n_positions']
+    SPREAD_OFFSET: float = settings['spread_offset']

@@ -52,7 +52,7 @@ class StrategyManager:
         expiry = ticker_combo.expiry
 
         # load strategy status
-        strategy_status = self._firestore_client.get(coin)
+        strategy_status = self._firestore_client.get_strategy_status(coin)
         if strategy_status is None:
             strategy_status = StrategyStatus(coin, expiry)
 
@@ -211,7 +211,7 @@ class StrategyManager:
         strategy_status.perp_size = None if perp_pos is None else perp_pos.size
         strategy_status.fut_size = None if fut_pos is None else fut_pos.size
         strategy_status.last_time_udpated = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
-        self._firestore_client.set(strategy_status)
+        self._firestore_client.set_strategy_status(strategy_status)
 
     def update_positions(self):
         self._positions = self._rest_manager.get_positions()
