@@ -58,6 +58,11 @@ class StrategyManager:
         coin = ticker_combo.coin
         expiry = ticker_combo.expiry
 
+        if coin not in settings.whitelist:
+            # self._rest_manager.cancel_orders(util.get_perp_symbol(coin))
+            # self._rest_manager.cancel_orders(util.get_future_symbol(coin, expiry))
+            return
+
         # set settings
         self._settings = settings
         self._offset = 1 + settings.spread_offset / 100
@@ -250,8 +255,8 @@ class RestManager:
     def get_open_orders(self) -> List[Order]:
         return self._connector_rest.get_open_orders()
 
-    def cancel_orders(self) -> None:
-        self._connector_rest.cancel_orders()
+    def cancel_orders(self, market: Optional[str] = None) -> None:
+        self._connector_rest.cancel_orders(market)
 
     def cancel_order(self, order_id: str) -> None:
         try:

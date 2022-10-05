@@ -10,14 +10,13 @@ from classes import StrategyStatus, WsTicker
 import time
 import pandas as pd
 import asyncio
-from classes import TickerCombo
+from classes import TickerCombo, BasisType
 import matplotlib.pyplot as plt
+from firestore_client import FirestoreClient
 
 
 ws_client = FtxWebsocketClient()
 connector_rest = FtxConnectorRest(cfg.API_KEY, cfg.API_SECRET, cfg.SUB_ACCOUNT)
-
-EXPIRY = '0930'
 
 MODES = ('Market Overview', 'Positions', 'Manual Trading', 'Funding')
 
@@ -48,8 +47,8 @@ def main():
 
 
 _active_futures = util.get_active_futures_with_expiry()
-_expiry = '1230'
-_coins = [coin for coin in _active_futures[_expiry] if coin not in cfg.BLACKLIST]
+settings = FirestoreClient().get_strategy_settings()
+_coins = [coin for coin in _active_futures[settings.expiration] if coin not in settings.blacklist]
 fundings = {coin: None for coin in _coins}
 
 
@@ -84,7 +83,7 @@ def _market_overview():
 
         for coin in _coins:
             perp_symbol = util.get_perp_symbol(coin)
-            fut_symbol = util.get_future_symbol(coin, _expiry)
+            fut_symbol = util.get_future_symbol(coin, settings.expiration)
 
             perp_ticker = _get_ticker(perp_symbol)
             fut_ticker = _get_ticker(fut_symbol)
@@ -92,17 +91,18 @@ def _market_overview():
             if perp_ticker is None or fut_ticker is None:
                 continue
 
-            ticker_combo = TickerCombo(coin, _expiry, perp_ticker, fut_ticker)
+            ticker_combo = TickerCombo(coin, settings.expiration, perp_ticker, fut_ticker)
+            basis_type = BasisType.CONTANGO if ticker_combo.basis >= 0 else BasisType.BACKWARDATION
 
-            # if abs(ticker_combo.adj_basis_open) > 1:
-            market_data.append({
-                'Coin': coin,
-                'Perp Price': perp_ticker.mark,
-                'Fut Price': fut_ticker.mark,
-                'Basis': ticker_combo.basis,
-                # 'Adj Basis Open': ticker_combo.adj_basis_open,
-                # 'Funding': None,  # util.get_funding_rate_avg_24h(perp_symbol)
-            })
+            if abs(ticker_combo.basis) > 1:
+                market_data.append({
+                    'Coin': coin,
+                    'Perp Price': perp_ticker.mark,
+                    'Fut Price': fut_ticker.mark,
+                    'Basis': ticker_combo.basis,
+                    'Basis open': ticker_combo.get_basis_open(basis_type)
+                    # 'Funding': None,  # util.get_funding_rate_avg_24h(perp_symbol)
+                })
 
         df = pd.DataFrame(market_data)
         data_table.table(df)
@@ -119,7 +119,7 @@ def show_positions():
     while True:
         data = []
 
-        for coin in cfg.WHITELIST:
+        for coin in settings.whitelist:
             cache_path = f'{cfg.CACHE_FOLDER}/{coin}.json'
             if not util.file_exists(cache_path):
                 continue
@@ -150,7 +150,7 @@ def show_manual_trading():
         return
 
     perp_symbol = util.get_perp_symbol(coin)
-    fut_symbol = util.get_future_symbol(coin, _expiry)
+    fut_symbol = util.get_future_symbol(coin, settings.expiration)
 
     basis_placeholder = st.empty()
     basis_placeholder.json({
@@ -164,7 +164,7 @@ def show_manual_trading():
         perp_ticker = WsTicker(connector_rest._client.get_future(perp_symbol))
         fut_ticker = WsTicker(connector_rest._client.get_future(fut_symbol))
 
-        ticker_combo = TickerCombo(coin, _expiry, perp_ticker, fut_ticker)
+        ticker_combo = TickerCombo(coin, settings.expiration, perp_ticker, fut_ticker)
         basis_placeholder.json({
             "is_contango": ticker_combo.is_contango,
             "basis": round(ticker_combo.basis, 4),
@@ -175,9 +175,9 @@ def show_manual_trading():
     if st.button('Open Position'):
         perp_ticker = WsTicker(connector_rest._client.get_future(perp_symbol))
         fut_ticker = WsTicker(connector_rest._client.get_future(fut_symbol))
-        ticker_combo = TickerCombo(coin, _expiry, perp_ticker, fut_ticker)
+        ticker_combo = TickerCombo(coin, settings.expiration, perp_ticker, fut_ticker)
 
-        size = cfg.TRADE_SIZE_USD / max(perp_ticker.mark, fut_ticker.mark)
+        size = settings.trade_size_usd / max(perp_ticker.mark, fut_ticker.mark)
 
         if ticker_combo.is_contango:
             # buy perp, sell future

@@ -5,7 +5,10 @@ from typing import Optional
 import time
 
 cred = credentials.Certificate("carrybot-2426e-firebase-adminsdk-woiqw-d35ffd970c.json")
-firebase_admin.initialize_app(cred)
+try:
+    firebase_admin.initialize_app(cred)
+except ValueError:
+    pass
 
 
 class FirestoreClient:
