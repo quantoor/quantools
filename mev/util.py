@@ -2,7 +2,7 @@ from brownie import Contract
 from common.logger import logger
 
 
-def contract_load(address, alias):
+def load_contract(address, alias):
     try:
         contract = Contract(alias)
     except ValueError:
