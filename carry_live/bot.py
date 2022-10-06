@@ -53,6 +53,7 @@ class StrategyManager:
         self._positions = None
         self._offset: float = 0.
         self._settings: StrategySettings = StrategySettings()
+        self._strategies_status_cache: Dict[str, StrategyStatus] = {}
 
     def process_ticker(self, ticker_combo: TickerCombo, settings) -> None:
         coin = ticker_combo.coin
@@ -68,9 +69,13 @@ class StrategyManager:
         self._offset = 1 + settings.spread_offset / 100
 
         # load strategy status
-        strategy_status = self._firestore_client.get_strategy_status(coin)
-        if strategy_status is None:
-            strategy_status = StrategyStatus(coin, expiry)
+        if coin in self._strategies_status_cache:
+            strategy_status = self._strategies_status_cache[coin]
+        else:
+            strategy_status = self._firestore_client.get_strategy_status(coin)
+            if strategy_status is None:
+                strategy_status = StrategyStatus(coin, expiry)
+            self._strategies_status_cache[coin] = strategy_status
 
         # check current position
         is_position_open, open_basis_type = self._is_position_open(coin, expiry)
@@ -166,6 +171,7 @@ class StrategyManager:
         strategy_status.n_positions += 1
         strategy_status.last_open_basis = round(basis_open, 2)
         self._update_strategy_status(strategy_status)
+        self._strategies_status_cache.pop(strategy_status.coin, None)
 
         # notify
         msg = f'Opened position for {ticker_combo.coin}. Strategy status: {strategy_status}'
@@ -207,6 +213,7 @@ class StrategyManager:
         strategy_status.n_positions = 0
         strategy_status.last_open_basis = 0
         self._update_strategy_status(strategy_status)
+        self._strategies_status_cache.pop(strategy_status.coin, None)
 
         # notify
         msg = f'Closed position for {ticker_combo.coin}. Strategy status: {strategy_status}'
