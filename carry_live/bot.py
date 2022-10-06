@@ -237,7 +237,10 @@ class StrategyManager:
         self._firestore_client.set_strategy_status(strategy_status)
 
     def update_positions(self):
-        self._positions = self._rest_manager.get_positions()
+        try:
+            self._positions = self._rest_manager.get_positions()
+        except Exception as e:
+            logger.error(f'Could not get positions: {e}')
 
 
 class RestManager:
