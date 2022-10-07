@@ -1,5 +1,7 @@
 docker run -p 8545:8545 trufflesuite/ganache:latest --fork.url https://api.avax.network/ext/bc/C/rpc --chain.hardfork istanbul --wallet.mnemonic brownie
 
+docker run -p 8545:8545 trufflesuite/ganache:latest --fork.url https://api.avax.network/ext/bc/C/rpc@11730000 --chain.hardfork istanbul --wallet.mnemonic brownie
+
 brownie networks add Docker ganache-avax-fork host=http://127.0.0.1:8545 chainid=1337 explorer=https://api.snowtrace.io/api
 
 brownie networks add Avalanche avax-main-quicknode host=https://wispy-responsive-forest.avalanche-mainnet.discover.quiknode.pro/033b224797f9bd5fa443dbfbd2cf4f44671586a2/ext/bc/C/rpc explorer=https://api.snowtrace.io/api chainid=43114
