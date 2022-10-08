@@ -37,7 +37,7 @@ def main():
     chain.revert()
     user = accounts[0]
     FlashBorrow.deploy({'from': user})
-    flas_borrow_contract = FlashBorrow[0]
+    flash_borrow_contract = FlashBorrow[0]
 
     sspell_borrow_amount = 10000 * 10 ** 18
     spell_repay_amount = traderjoe_router.getAmountsIn(sspell_borrow_amount, [spell.address, sspell.address])[0]
@@ -51,19 +51,19 @@ def main():
     print(f'User SPELL balance: {spell.balanceOf(user.address)}')
 
     print('Transfer SPELL from user to contract')
-    spell.transfer(flas_borrow_contract.address, spell.balanceOf(user), {'from': user})
+    spell.transfer(flash_borrow_contract.address, spell.balanceOf(user), {'from': user})
 
-    print(f'Flash Borrow Contract SPELL balance: {spell.balanceOf(flas_borrow_contract.address)}')
+    print(f'Flash Borrow Contract SPELL balance: {spell.balanceOf(flash_borrow_contract.address)}')
 
     print(f'Executing flash swap: borrow {sspell_borrow_amount} sSPELL, repay with {spell_repay_amount} SPELL')
-    tx = flas_borrow_contract.execute(pool.address,
-                                      sspell.address,
-                                      sspell_borrow_amount,
-                                      spell.address,
-                                      spell_repay_amount,
-                                      {'from': user})
+    tx = flash_borrow_contract.execute(pool.address,
+                                       sspell.address,
+                                       sspell_borrow_amount,
+                                       spell.address,
+                                       spell_repay_amount,
+                                       {'from': user})
 
     print(tx.info())
 
-    print(f'Flash Borrow Contract SPELL balance: {spell.balanceOf(flas_borrow_contract.address)}')
-    print(f'Flash Borrow Contract sSPELL balance: {sspell.balanceOf(flas_borrow_contract.address)}')
+    print(f'Flash Borrow Contract SPELL balance: {spell.balanceOf(flash_borrow_contract.address)}')
+    print(f'Flash Borrow Contract sSPELL balance: {sspell.balanceOf(flash_borrow_contract.address)}')
