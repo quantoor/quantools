@@ -7,5 +7,5 @@ brownie networks add Docker ganache-avax-fork host=http://127.0.0.1:8545 chainid
 brownie networks add Avalanche avax-main-quicknode host=https://wispy-responsive-forest.avalanche-mainnet.discover.quiknode.pro/033b224797f9bd5fa443dbfbd2cf4f44671586a2/ext/bc/C/rpc explorer=https://api.snowtrace.io/api chainid=43114
 brownie networks add Avalanche avax-main-quicknode-ws host=wss://wispy-responsive-forest.avalanche-mainnet.discover.quiknode.pro/033b224797f9bd5fa443dbfbd2cf4f44671586a2/ext/bc/C/ws explorer=https://api.snowtrace.io/api chainid=43114
 
-main.deploy({'from':accounts[0]})
-tx = main[0].execute(pool.address, sspell.address, 10000*10**18, spell.address, 12431913584726749018326, {'from':accounts[0]})
+brownie networks add "Fantom Opera" ftm-main-quicknode host=https://late-patient-ensemble.fantom.discover.quiknode.pro/68ec9586cc72456a8e203fbcd8a90c602a42fb3c/ explorer=https://ftmscan.com chainid=250
+brownie networks add "Fantom Opera" ftm-main-quicknode-ws host=wss://late-patient-ensemble.fantom.discover.quiknode.pro/68ec9586cc72456a8e203fbcd8a90c602a42fb3c/ explorer=https://ftmscan.com chainid=250
