@@ -12,6 +12,7 @@ class Token:
 class LP:
     def __init__(self, address, alias):
         self._lp = util.load_contract(address, alias)
+        self.address = address
         self._alias = alias
         self._token0 = None
         self._token1 = None
