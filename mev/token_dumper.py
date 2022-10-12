@@ -1,3 +1,4 @@
+import importer
 from brownie import *
 import os
 import sqlite3
@@ -74,10 +75,13 @@ def main():
     all_token_addresses = list(all_token_addresses)
 
     for i, token_address in enumerate(all_token_addresses):
-        print(f'Storing token {i}/{len(all_token_addresses)}')
+        try:
+            print(f'Storing token {i}/{len(all_token_addresses)}')
 
-        if token_address not in get_tokens():
-            insert_token(Token().from_explorer(token_address))
+            if token_address not in get_tokens():
+                insert_token(Token().from_explorer(token_address))
+        except:
+            pass
 
 
 main()
