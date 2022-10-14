@@ -26,7 +26,7 @@ def load_contract(address, alias):
 
 
 def main():
-    chain.revert()
+    chain.snapshot()
 
     # constants
     spell_address = '0xCE1bFFBD5374Dac86a2893119683F4911a2F7814'
@@ -48,19 +48,26 @@ def main():
     # deploy contract
     TwoPoolArbitrage.deploy(sushi_factory_address, sushi_router_address, {'from': accounts[0]})
 
-    print('Executing arbitrage')
+    print('Executing arbitrage...')
     # execute arbitrage
-    tx = TwoPoolArbitrage[0].execute(
-        sushi_pool_address,
-        spell_address,
-        29312834720491373000000,
-        [spell_address, sspell_address],
-        trader_joe_router_address,
-        {'from': accounts[0], 'allow_revert': True, 'gas_limit': 300000}
-    )
+    try:
+        tx = TwoPoolArbitrage[0].execute(
+            sushi_pool_address,
+            spell_address,
+            29312834720491373000000,
+            [spell_address, sspell_address],
+            trader_joe_router_address,
+            {'from': accounts[0]}
+        )
+    except ValueError:
+        print('Error executing arbitrage, revert')
+        chain.revert()
+        return
 
     print(tx.info())
 
     # check profit in balance
     sspell_contract = load_contract(sspell_address, 'sspell')
     print(sspell_contract.balanceOf(accounts[0]))
+
+    chain.revert()
