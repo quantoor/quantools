@@ -46,12 +46,12 @@ def main():
     print('Trader Joe sPELL/SPELL:', res[0]/res[1])
 
     # deploy contract
-    TwoPoolArbitrage.deploy(sushi_factory_address, sushi_router_address, {'from': accounts[0]})
+    two_pool_arbitrage.deploy(sushi_factory_address, sushi_router_address, {'from': accounts[0]})
 
     print('Executing arbitrage...')
     # execute arbitrage
     try:
-        tx = TwoPoolArbitrage[0].execute(
+        tx = two_pool_arbitrage[0].execute(
             sushi_pool_address,
             spell_address,
             29312834720491373000000,
@@ -59,15 +59,15 @@ def main():
             trader_joe_router_address,
             {'from': accounts[0]}
         )
-    except ValueError:
-        print('Error executing arbitrage, revert')
+
+        print(tx.info())
+
+        # check profit in balance
+        sspell_contract = load_contract(sspell_address, 'sspell')
+        print(sspell_contract.balanceOf(accounts[0]))
+
+    except Exception as e:
+        print(f'Error executing arbitrage: {e}')
+    finally:
+        print(f'Revert chain')
         chain.revert()
-        return
-
-    print(tx.info())
-
-    # check profit in balance
-    sspell_contract = load_contract(sspell_address, 'sspell')
-    print(sspell_contract.balanceOf(accounts[0]))
-
-    chain.revert()
