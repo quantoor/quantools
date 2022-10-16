@@ -140,7 +140,7 @@ def arbitrage():
     borrow_amount_opt, profit_opt = optimize_two_pool_arbitrage(sushi_reserves, trader_joe_reserves, borrow_token0)
     print('Optimal results', borrow_amount_opt / 10 ** 18, profit_opt / 10 ** 18)
 
-    if profit_opt > 100 * 10**18:
+    if profit_opt > 1000 * 10**18:
         if LIVE:
             spell_sspell_arbitrage = Contract.from_abi(
                 name="",

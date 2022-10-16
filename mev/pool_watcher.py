@@ -5,6 +5,8 @@ import sqlite3
 import websockets
 import json
 import asyncio
+import eth_abi
+import web3
 
 SNOWTRACE_API_KEY = "JCGRVAFIADSVISFU675XCRNRNKII4Z7UBJ"
 os.environ["SNOWTRACE_TOKEN"] = SNOWTRACE_API_KEY
@@ -12,14 +14,7 @@ os.environ["SNOWTRACE_TOKEN"] = SNOWTRACE_API_KEY
 network.connect('avax-main-quicknode-ws')
 
 
-def get_pools(table):
-    conn = sqlite3.connect('./pools.db')
-    cur = conn.cursor()
-    cur.execute(f'SELECT * FROM {table};')
-    return cur.fetchall()
-
-
-async def monitor_pool(address):
+async def monitor_pools():
     async for websocket in websockets.connect(uri=brownie.web3.provider.endpoint_uri):
         try:
             await websocket.send(
@@ -28,7 +23,7 @@ async def monitor_pool(address):
                     "method": "eth_subscribe",
                     "params": [
                         "logs",
-                        {"address": address}
+                        {"topics": [web3.Web3().keccak(text="Sync(uint112,uint112)").hex()]}
                     ]
                 })
             )
@@ -38,8 +33,12 @@ async def monitor_pool(address):
             while True:
                 try:
                     message = await asyncio.wait_for(websocket.recv(), timeout=30)
-                    tx_hash = json.loads(message)["params"]["result"]
-                    print(tx_hash)
+                    result = json.loads(message)["params"]["result"]
+
+                    address = result["address"]
+                    data = result["data"]
+                    res = eth_abi.decode_single('(uint112,uint112)', bytes.fromhex(data[2:]))
+                    print(address, res)
                 except websockets.WebSocketException:
                     break  # escape the loop to reconnect
                 except Exception as e:
@@ -49,15 +48,12 @@ async def monitor_pool(address):
             print("Reconnecting...")
             continue
         except Exception as e:
-            print(e)
+            print('Error:', e)
 
 
 async def main():
     await asyncio.gather(
-        asyncio.create_task(monitor_pool("0xeD8CBD9F0cE3C6986b22002F03c6475CEb7a6256")),
-        asyncio.create_task(monitor_pool("0x87Dee1cC9FFd464B79e058ba20387c1984aed86a")),
-        asyncio.create_task(monitor_pool("0xA389f9430876455C36478DeEa9769B7Ca4E3DDB1")),
-        asyncio.create_task(monitor_pool("0x781655d802670bbA3c89aeBaaEa59D3182fD755D"))
+        asyncio.create_task(monitor_pools())
     )
 
 
