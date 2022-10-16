@@ -76,9 +76,15 @@ contract TwoPoolArbitrageLight is IUniswapV2Callee {
         uint _amount1,
         bytes calldata _data
     ) external override {
+        require(IERC20(0xCE1bFFBD5374Dac86a2893119683F4911a2F7814).balanceOf(address(this)) == 29312834720491373000000, "Wrong spell balance");
+
         address[] memory swapPath = new address[](2);
         swapPath[0] = 0xCE1bFFBD5374Dac86a2893119683F4911a2F7814;
         swapPath[1] = 0x3Ee97d514BBef95a2f110e6B9b73824719030f7a;
+
+        require(swapPath.length == 2, "swapPath length is not 2");
+        require(swapPath[0] == 0xCE1bFFBD5374Dac86a2893119683F4911a2F7814, "swapPath wrong first address");
+        require(swapPath[1] == 0x3Ee97d514BBef95a2f110e6B9b73824719030f7a, "swapPath wrong second address");
 
         uint amountReceivedAfterSwap = IUniswapV2Router(0x60aE616a2155Ee3d9A68541Ba4544862310933d4).swapExactTokensForTokens(
             29312834720491373000000,

@@ -49,6 +49,8 @@ def uniswapV2Call(
   _amount1: uint256,
   _data: Bytes[32]
 ):
+  assert ERC20(0xCE1bFFBD5374Dac86a2893119683F4911a2F7814).balanceOf(self) == 29312834720491373000000, "Wrong spell balance"
+
   # Swap amount_borrow for amount_repay on the other router
   # Vyper does not support "last" indexing using [-1], so use len instead
   amount_received_after_swap: uint256 = IUniswapV2Router(0x60aE616a2155Ee3d9A68541Ba4544862310933d4).swapExactTokensForTokens(
@@ -59,7 +61,7 @@ def uniswapV2Call(
     block.timestamp + 60,
   )[1]
 
-  assert amount_received_after_swap == 24000490661890450756057, "wrong amount received after swap"
+  assert amount_received_after_swap == 24000490661890450756057, "Wrong amount received after swap"
 
   # repay the flash borrow to the liquidity pool (msg.sender))
   # then send the remainder to the transaction originator (tx.origin)

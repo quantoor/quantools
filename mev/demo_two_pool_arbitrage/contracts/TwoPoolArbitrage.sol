@@ -104,7 +104,7 @@ contract TwoPoolArbitrage is IUniswapV2Callee {
             amount0,
             amount1,
             address(this),
-            "0xquantoor"
+            bytes("flash")
         );
     }
 
