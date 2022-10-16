@@ -16,10 +16,13 @@ class DatabaseClient:
         return cur.fetchall()
 
     def get_pool_to_pair_dict(self, table):
-        return {i[0]: (i[1], i[2]) for i in self._get_pools(table)}
+        return {i[0].lower(): (i[1].lower(), i[2].lower()) for i in self._get_pools(table)}
 
     def get_tokens_info(self):
-        return {i[0]: {'symbol': i[1], 'name': i[2], 'decimals': i[3], 'verified': i[4]} for i in self._get_tokens()}
+        return {
+            i[0].lower(): {'symbol': i[1], 'name': i[2], 'decimals': i[3], 'verified': i[4]}
+            for i in self._get_tokens()
+        }
 
 
 if __name__ == '__main__':
