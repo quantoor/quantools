@@ -48,10 +48,7 @@ swap_path: DynArray[address, 16]
 
 @external
 @nonpayable
-def __init__(
-  _sushiswap_factory_address: address,
-  _sushiswap_router_address: address,
-):
+def __init__(_sushiswap_factory_address: address, _sushiswap_router_address: address):
   self.sushiswap_factory_address = _sushiswap_factory_address
   self.sushiswap_router_address = _sushiswap_router_address
 
@@ -62,7 +59,7 @@ def execute(
   flash_borrow_token_address: address,
   flash_borrow_token_amount: uint256,
   swap_path: DynArray[address, 16],
-  swap_router_address: address,
+  swap_router_address: address
 ):
 
   # build a path for the swap (may be up to 16 tokens long)
@@ -78,7 +75,7 @@ def execute(
   amount1: uint256 = 0
 
   # sets "unlimited" approval whenever this contract attempts to interact with this token and the approval is less than the requested amount
-  approval: uint256 = ERC20(flash_borrow_token_address).allowance(self,swap_router_address)
+  approval: uint256 = ERC20(flash_borrow_token_address).allowance(self, swap_router_address)
   if approval < flash_borrow_token_amount:
     ERC20(flash_borrow_token_address).approve(swap_router_address, MAX_UINT256)
 
@@ -87,12 +84,7 @@ def execute(
   else:
     amount1 = flash_borrow_token_amount
 
-  IUniswapV2Pair(flash_borrow_pool_address).swap(
-    amount0,
-    amount1,
-    self,
-    b'flash',
-    )
+  IUniswapV2Pair(flash_borrow_pool_address).swap(amount0, amount1, self, b'flash')
 
 @external
 @nonpayable
