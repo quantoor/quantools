@@ -5,15 +5,22 @@ from fractions import Fraction
 from scipy import optimize
 
 # 21141181
+LIVE = True
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 os.environ["SNOWTRACE_TOKEN"] = "JCGRVAFIADSVISFU675XCRNRNKII4Z7UBJ"
 
-try:
-    network.connect('avax-main')
-except:
-    pass
+ARB_CONTRACT_ADDRESS = "0xF6aA141f9D032C2d74415e1cb5E3aFE271726111"
+
+if LIVE:
+    from abi import ABI
+
+    try:
+        network.connect('avax-main')
+    except Exception as e:
+        # sys.exit(f'Could not connect to network: {e}')
+        pass
 
 spell = Contract('0xCE1bFFBD5374Dac86a2893119683F4911a2F7814')
 sspell = Contract('0x3Ee97d514BBef95a2f110e6B9b73824719030f7a')
@@ -133,17 +140,33 @@ def arbitrage():
     borrow_amount_opt, profit_opt = optimize_two_pool_arbitrage(sushi_reserves, trader_joe_reserves, borrow_token0)
     print('Optimal results', borrow_amount_opt / 10 ** 18, profit_opt / 10 ** 18)
 
-    if profit_opt > 0:
-        spell_sspell_arbitrage.deploy(sushi_router.address, {'from': accounts[0]})
+    if profit_opt > 100 * 10**18:
+        if LIVE:
+            spell_sspell_arbitrage = Contract.from_abi(
+                name="",
+                address=ARB_CONTRACT_ADDRESS,
+                abi=ABI,
+            )
 
-        tx = spell_sspell_arbitrage[0].execute(
-            sushi_pool.address,
-            borrow_token_address,
-            borrow_amount_opt,
-            swap_path,
-            trader_joe_router,
-            {'from': accounts[0]}
-        )
+            tx = spell_sspell_arbitrage.execute(
+                sushi_pool.address,
+                borrow_token_address,
+                borrow_amount_opt,
+                swap_path,
+                trader_joe_router,
+                {'from': accounts[0]}
+            )
+        else:
+            spell_sspell_arbitrage.deploy(sushi_router.address, {'from': accounts[0]})
+
+            tx = spell_sspell_arbitrage[0].execute(
+                sushi_pool.address,
+                borrow_token_address,
+                borrow_amount_opt,
+                swap_path,
+                trader_joe_router,
+                {'from': accounts[0]}
+            )
 
         print(tx.info())
 
@@ -154,8 +177,15 @@ def arbitrage():
 
 def main():
     try:
-        chain.snapshot()
-        print('Snapshot chain at', chain.height)
+        if not LIVE:
+            chain.snapshot()
+            print('Snapshot chain at', chain.height)
         arbitrage()
+    except Exception as e:
+        print('ERROR', e)
     finally:
-        print('Revert chain to', chain.revert())
+        if not LIVE:
+            print('Revert chain to', chain.revert())
+
+
+main()
