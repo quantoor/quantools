@@ -24,8 +24,10 @@ POOL_TO_PAIR_TRADER_JOE = db_client.get_pool_to_pair_dict('traderjoe_pools')
 POOL_TO_PAIR_TRADER_ALL = POOL_TO_PAIR_SUSHI | POOL_TO_PAIR_PANGOLIN | POOL_TO_PAIR_TRADER_JOE
 TOKENS = db_client.get_tokens_info()
 
+arbitrage_dict = {}
 
-def get_pool_name(address) -> str:
+
+def get_pool_dex(address) -> str:
     if address in POOL_TO_PAIR_SUSHI:
         return SUSHI
     if address in POOL_TO_PAIR_PANGOLIN:
@@ -93,7 +95,23 @@ async def monitor_pools():
                 res = eth_abi.decode_single('(uint112,uint112)', bytes.fromhex(data[2:]))
                 res0 = res[0] / 10 ** token0['decimals']
                 res1 = res[1] / 10 ** token1['decimals']
-                print(f'''[{get_pool_name(address)}] {token0['symbol']}/{token1['symbol']}: {res1 / res0}''')
+
+                pair_symbol = token0['symbol'] + '/' + token1['symbol']
+                quote = res1 / res0
+
+                # save quotes
+                key = frozenset[token0_address, token1_address]
+                if key in arbitrage_dict:
+                    arbitrage_dict[key][address] = {
+                        'DEX': get_pool_dex(address), 'pair_symbol': pair_symbol, 'quote': quote
+                    }
+                else:
+                    arbitrage_dict[key] = {
+                        address: {'DEX': get_pool_dex(address), 'pair_symbol': pair_symbol, 'quote': quote}
+                    }
+
+                print(arbitrage_dict[key])
+                # print(f'''[{get_pool_dex(address)}] {pair_symbol}: {quote}''')
 
             except Exception as e:
                 print('Error', e)
