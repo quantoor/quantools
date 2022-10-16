@@ -21,6 +21,7 @@ db_client = DatabaseClient('./pools.db')
 POOL_TO_PAIR_SUSHI = db_client.get_pool_to_pair_dict('sushiswap_pools')
 POOL_TO_PAIR_PANGOLIN = db_client.get_pool_to_pair_dict('pangolin_pools')
 POOL_TO_PAIR_TRADER_JOE = db_client.get_pool_to_pair_dict('traderjoe_pools')
+POOL_TO_PAIR_TRADER_ALL = POOL_TO_PAIR_SUSHI | POOL_TO_PAIR_PANGOLIN | POOL_TO_PAIR_TRADER_JOE
 TOKENS = db_client.get_tokens_info()
 
 
@@ -35,15 +36,10 @@ def get_pool_name(address) -> str:
 
 def ignore_pool(address) -> bool:
     # ignore tokens not verified
-    if address in POOL_TO_PAIR_SUSHI:
-        pair = POOL_TO_PAIR_SUSHI[address]
-    elif address in POOL_TO_PAIR_PANGOLIN:
-        pair = POOL_TO_PAIR_PANGOLIN[address]
-    elif address in POOL_TO_PAIR_TRADER_JOE:
-        pair = POOL_TO_PAIR_TRADER_JOE[address]
+    if address in POOL_TO_PAIR_TRADER_ALL:
+        pair = POOL_TO_PAIR_TRADER_ALL[address]
     else:
         # raise Exception(f'pool {address} not found')
-        # todo add all pools to db
         return True
 
     try:
@@ -89,15 +85,16 @@ async def monitor_pools():
                 continue
 
             try:
-                pool = util.load_contract(address, address[2:])
-                token0 = util.load_contract(pool.token0(), pool.token0()[2:])
-                token1 = util.load_contract(pool.token1(), pool.token1()[2:])
+                token0_address, token1_address = POOL_TO_PAIR_TRADER_ALL[address]
+                token0 = TOKENS[token0_address]
+                token1 = TOKENS[token1_address]
 
                 data = result["data"]
                 res = eth_abi.decode_single('(uint112,uint112)', bytes.fromhex(data[2:]))
-                res0 = res[0] / 10 ** token0.decimals()
-                res1 = res[1] / 10 ** token1.decimals()
-                print(f'[{get_pool_name(address)}] {token0.symbol()}/{token1.symbol()}', res1 / res0)
+                res0 = res[0] / 10 ** token0['decimals']
+                res1 = res[1] / 10 ** token1['decimals']
+                print(f'''[{get_pool_name(address)}] {token0['symbol']}/{token1['symbol']}: {res1 / res0}''')
+
             except Exception as e:
                 print('Error', e)
 
