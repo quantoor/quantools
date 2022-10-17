@@ -5,9 +5,9 @@ class DatabaseClient:
     def __init__(self, db_name):
         self.conn = sqlite3.connect(db_name)
 
-    def _get_pools(self, table):
+    def _get_pools(self):
         cur = self.conn.cursor()
-        cur.execute(f'SELECT * FROM {table};')
+        cur.execute(f'SELECT * FROM pools;')
         return cur.fetchall()
 
     def _get_tokens(self):
@@ -15,8 +15,26 @@ class DatabaseClient:
         cur.execute(f'SELECT * FROM tokens;')
         return cur.fetchall()
 
-    def get_pool_to_pair_dict(self, table):
-        return {i[0].lower(): (i[1].lower(), i[2].lower()) for i in self._get_pools(table)}
+    def get_pools(self):
+        return {i[0].lower(): (i[1].lower(), i[2].lower(), i[3]) for i in self._get_pools()}
+
+    def get_pool_to_exchange_dict(self):
+        return {i[0].lower(): i[3] for i in self._get_pools()}
+
+    def get_pair_to_pools_dict(self, min_pools=1, max_pools=3):
+        assert min_pools <= max_pools, "min_pools cannot be greater than max_pools"
+
+        pair_to_pools_dict = {}  # {frozenset[token0, token1]: [pools...]}
+        for row in self._get_pools():
+            pool, token0, token1, _ = row
+            pair = frozenset[token0, token1]
+
+            if pair in pair_to_pools_dict:
+                pair_to_pools_dict[pair].append(pool)
+            else:
+                pair_to_pools_dict[pair] = [pool]
+
+        return {pair: pools for pair, pools in pair_to_pools_dict.items() if min_pools <= len(pools) <= max_pools}
 
     def get_tokens_info(self):
         return {
@@ -26,6 +44,6 @@ class DatabaseClient:
 
 
 if __name__ == '__main__':
-    db_client = DatabaseClient('./pools.db')
-    pools = db_client.get_pool_to_pair_dict('pangolin_pools')
-    tokens = db_client.get_tokens_info()
+    db_client = DatabaseClient('./avalanche.db')
+    res = db_client.get_pair_to_pools_dict(2, 3)
+    print(res)
