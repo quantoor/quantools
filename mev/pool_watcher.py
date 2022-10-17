@@ -6,42 +6,30 @@ import json
 import asyncio
 import eth_abi
 import web3
-import util
 from database_client import DatabaseClient
+
 
 os.environ["SNOWTRACE_TOKEN"] = "JCGRVAFIADSVISFU675XCRNRNKII4Z7UBJ"
 
 network.connect('avax-main-quicknode-ws')
 
-SUSHI = 'Sushiswap'
-PANGOLIN = 'Pangolin'
-TRADER_JOE = 'Trader Joe'
-
-db_client = DatabaseClient('./pools.db')
-POOL_TO_PAIR_SUSHI = db_client.get_pool_to_pair_dict('sushiswap_pools')
-POOL_TO_PAIR_PANGOLIN = db_client.get_pool_to_pair_dict('pangolin_pools')
-POOL_TO_PAIR_TRADER_JOE = db_client.get_pool_to_pair_dict('traderjoe_pools')
-POOL_TO_PAIR_TRADER_ALL = POOL_TO_PAIR_SUSHI | POOL_TO_PAIR_PANGOLIN | POOL_TO_PAIR_TRADER_JOE
+db_client = DatabaseClient('./avalanche.db')
+POOL_TO_PAIR_DICT = db_client.get_pool_to_pair_dict()
+POOL_TO_EXCHANGE_DICT = db_client.get_pool_to_exchange_dict()
 TOKENS = db_client.get_tokens_info()
 
 arbitrage_dict = {}
 
 
-def get_pool_dex(address) -> str:
-    if address in POOL_TO_PAIR_SUSHI:
-        return SUSHI
-    if address in POOL_TO_PAIR_PANGOLIN:
-        return PANGOLIN
-    if address in POOL_TO_PAIR_TRADER_JOE:
-        return TRADER_JOE
+def get_pool_exchange(address) -> str:
+    return POOL_TO_EXCHANGE_DICT.get(address, None)
 
 
 def ignore_pool(address) -> bool:
     # ignore tokens not verified
-    if address in POOL_TO_PAIR_TRADER_ALL:
-        pair = POOL_TO_PAIR_TRADER_ALL[address]
+    if address in POOL_TO_PAIR_DICT:
+        pair = POOL_TO_PAIR_DICT[address]
     else:
-        # raise Exception(f'pool {address} not found')
         return True
 
     try:
@@ -87,7 +75,7 @@ async def monitor_pools():
                 continue
 
             try:
-                token0_address, token1_address = POOL_TO_PAIR_TRADER_ALL[address]
+                token0_address, token1_address = POOL_TO_PAIR_DICT[address]
                 token0 = TOKENS[token0_address]
                 token1 = TOKENS[token1_address]
 
@@ -100,18 +88,18 @@ async def monitor_pools():
                 quote = res1 / res0
 
                 # save quotes
-                key = frozenset[token0_address, token1_address]
-                if key in arbitrage_dict:
-                    arbitrage_dict[key][address] = {
-                        'DEX': get_pool_dex(address), 'pair_symbol': pair_symbol, 'quote': quote
-                    }
-                else:
-                    arbitrage_dict[key] = {
-                        address: {'DEX': get_pool_dex(address), 'pair_symbol': pair_symbol, 'quote': quote}
-                    }
+                # key = frozenset[token0_address, token1_address]
+                # if key in arbitrage_dict:
+                #     arbitrage_dict[key][address] = {
+                #         'DEX': get_pool_exchange(address), 'pair_symbol': pair_symbol, 'quote': quote
+                #     }
+                # else:
+                #     arbitrage_dict[key] = {
+                #         address: {'DEX': get_pool_exchange(address), 'pair_symbol': pair_symbol, 'quote': quote}
+                #     }
 
-                print(arbitrage_dict[key])
-                # print(f'''[{get_pool_dex(address)}] {pair_symbol}: {quote}''')
+                # print(arbitrage_dict[key])
+                print(f'''[{get_pool_exchange(address)}] {pair_symbol}: {quote}''')
 
             except Exception as e:
                 print('Error', e)

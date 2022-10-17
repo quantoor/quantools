@@ -15,8 +15,8 @@ class DatabaseClient:
         cur.execute(f'SELECT * FROM tokens;')
         return cur.fetchall()
 
-    def get_pools(self):
-        return {i[0].lower(): (i[1].lower(), i[2].lower(), i[3]) for i in self._get_pools()}
+    def get_pool_to_pair_dict(self):
+        return {i[0].lower(): (i[1].lower(), i[2].lower()) for i in self._get_pools()}
 
     def get_pool_to_exchange_dict(self):
         return {i[0].lower(): i[3] for i in self._get_pools()}
