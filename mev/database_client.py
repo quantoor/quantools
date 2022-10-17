@@ -27,12 +27,12 @@ class DatabaseClient:
         pair_to_pools_dict = {}  # {frozenset[token0, token1]: [pools...]}
         for row in self._get_pools():
             pool, token0, token1, _ = row
-            pair = frozenset[token0, token1]
+            pair = frozenset[token0.lower(), token1.lower()]
 
             if pair in pair_to_pools_dict:
-                pair_to_pools_dict[pair].append(pool)
+                pair_to_pools_dict[pair].append(pool.lower())
             else:
-                pair_to_pools_dict[pair] = [pool]
+                pair_to_pools_dict[pair] = [pool.lower()]
 
         return {pair: pools for pair, pools in pair_to_pools_dict.items() if min_pools <= len(pools) <= max_pools}
 
