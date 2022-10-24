@@ -61,6 +61,10 @@ def get_spot_symbol(coin: str) -> str:
 def get_perp_symbol(coin: str) -> str:
     return f'{coin}-PERP'
 
+def get_future_stats(instrument : str):
+    res = client.get_future_stats(instrument)
+    return res
+
 
 def get_future_symbol(coin: str, expiration: str) -> str:
     return f'{coin}-{expiration}'
@@ -104,7 +108,7 @@ def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_t
         res = client.get_historical_prices(instrument, resolution, start_ts, first_ts_received - resolution)
         if len(res) == 0:
             break
-        first_ts_received = int(res[0]['time'] / 1000)
+        first_ts_received = int(res[0]['time']/ 1000)
         for i in reversed(res):
             timestamps.insert(0, int(i['time'] / 1000))
             prices.insert(0, i['open'])
@@ -115,6 +119,9 @@ def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_t
         print('done')
     return np.array(timestamps), np.array(prices)
 
+def get_market_price(instrument : str):
+    res = client.get_market_single(instrument)
+    return res
 
 def get_historical_funding(instrument: str, start_ts: int, end_ts: int, verbose: bool = False) \
         -> Tuple[np.ndarray, np.ndarray]:
