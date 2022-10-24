@@ -111,7 +111,7 @@ def get_historical_prices(instrument: str, resolution: int, start_ts: int, end_t
         first_ts_received = int(res[0]['time']/ 1000)
         for i in reversed(res):
             timestamps.insert(0, int(i['time'] / 1000))
-            prices.insert(0, i['open'])
+            prices.insert(0, i['close'])
         if verbose:
             print('...', end='')
 

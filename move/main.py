@@ -8,7 +8,7 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from Volatility import find_vol
+from Volatility import find_vol,Close_to_close
 
 move_symbols = mvutil.get_expired_move_symbols()
 
@@ -34,7 +34,6 @@ def get_percentage_closure():
             resolution_default = 14400
             ts, mv_prices = util.get_historical_prices(move,resolution_default, 0, int(time.time()), verbose=False)
         dates = [dt.datetime.fromtimestamp(t) for t in ts]
-        ul_ts, ul_prices = util.get_historical_prices('BTC/USD',3600,ts[0],ts[-1],verbose=False)
         type_of_move = type_move(move)
         int_shift = int(len(dates) / 24/(resolution_default/3600)/2)
         if (type_of_move == 'Daily'):
@@ -65,10 +64,27 @@ def get_IV(move):
     ivs = [find_vol(target,under,strike,T,r) for T,under,target in zip_all]
     return dates[:-1],ivs
 
+
+def get_RV(days = 7,method = 'close_to_close'):
+    time_end = int(time.time())
+    string = "2022-01-01"
+    time_begin = time.mktime(dt.datetime.strptime(string,"%Y-%m-%d").timetuple())
+    ul_ts, ul_prices = util.get_historical_prices('BTC/USD', 3600, time_begin,time_end, verbose=False)
+
+    plt.plot(ul_prices)
+    plt.show()
+
+    RV_days = Close_to_close(ul_prices,days = days)
+    plt.plot(RV_days)
+    plt.show()
+
 move = move_symbols[4]
-dates,IV_move = get_IV(move)
-plt.plot(IV_move)
-plt.show()
+# dates,IV_move = get_IV(move)
+# plt.plot(IV_move)
+# plt.show()
+#
+get_RV(move)
+
 
 # fix, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 6), sharex='col')
 # ax1.plot(dates[:len(ul_prices)], ul_prices)

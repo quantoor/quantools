@@ -23,3 +23,10 @@ def find_vol(target_value, S, K, T, r, *args):
             return sigma
         sigma = sigma + diff/vega # f(x) / f'(x)
     return sigma # value wasn't found, return best guess so far
+
+def Close_to_close(price_data,days = 7):
+    window_time = days * 24
+    multiplier = 24
+    rs = np.log(price_data/price_data.shift(1))
+    result = rs.rolling(window=window_time, center=False).std(ddof=1) * np.sqrt(trading_periods * multiplier)
+    return result
